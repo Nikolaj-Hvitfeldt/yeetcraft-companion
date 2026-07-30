@@ -67,6 +67,28 @@ Cross-repository features require an **explicit task scope** with separate chang
 
 ---
 
+## Tracked and untracked party members
+
+A Mythic+ group contains five players. Yeetcraft initially recognizes four
+configured tracked characters; the fifth player is normally an untracked party
+member.
+
+The companion's low-level CSV parser must remain roster-neutral. Identity
+filtering belongs after normalization, where the companion can apply configured
+tracking rules without corrupting the underlying event shape.
+
+| Identity class | Local behavior | Future upload behavior |
+| -------------- | -------------- | ---------------------- |
+| Configured tracked character | Retain normalized death evidence needed for review | May upload only after identity mapping and review rules are approved |
+| Untracked party member | Keep only anonymized context when required to understand a run | Never upload name, realm, GUID, or death statistic |
+
+An untracked party member must not be created automatically as a Yeetcraft
+player and must not contribute to Yeetcraft death totals. Final identity mapping
+between combat-log GUIDs and configured tracked characters remains an open
+design decision.
+
+---
+
 ## Contract ownership
 
 | Item | Owner | Location |

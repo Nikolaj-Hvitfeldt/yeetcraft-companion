@@ -3,7 +3,7 @@
 | Field | Value |
 | ----- | ----- |
 | **Status** | Planning |
-| **Current milestone** | Pre-Phase 0 complete / Phase 0 pending |
+| **Current milestone** | Phase 0A.1 complete / Phase 0A.2 pending |
 | **Canonical repository** | [yeetcraft-companion](https://github.com/Nikolaj-Hvitfeldt/yeetcraft-companion) |
 | **Related repository** | [yeetcraft](https://github.com/Nikolaj-Hvitfeldt/Yeetcraft) (website, backend, PostgreSQL, API, canonical companion contract) |
 | **Last updated** | 2026-07-30 |
@@ -14,7 +14,7 @@ Automatic capture, local processing, and reliable upload of Mythic+ death events
 | ----- | ----- |
 | Primary focus | Windows companion application and Yeetcraft integration |
 | Existing system | React/Vite PWA, Go API, PostgreSQL/Supabase, Vercel + Render |
-| Initial users | Niko, Seb, Martin, and Niklas |
+| Initial users | Four configured tracked characters (fixed friend-group MVP) |
 | Addon | Optional later extension; **not** a dependency for the companion MVP |
 | Document status | Implementation-ready plan; technical unknowns isolated in Phase 0 |
 
@@ -87,7 +87,7 @@ The new companion application lives in its own sibling repository and has **no r
 
 | Finding | Evidence | Consequence |
 | ------- | -------- | ----------- |
-| Players are people, not WoW characters | `players` has `display_name`/`avatar_url`; profile data is keyed by Seb/Martin/Niklas/Niko | Keep players as owner identity; add characters |
+| Players are people, not WoW characters | `players` has `display_name`/`avatar_url`; profile data is keyed by configured tracked identity slugs in the sibling frontend registry | Keep players as owner identity; add characters |
 | Characters and roles are frontend-only | `frontend/src/data/player-characters.ts` | Move canonical character identity/class to PostgreSQL |
 | All statistics are mutable aggregates | `player_dungeon_stats` and `SetStatsBatch` | No run, death, or cause audit trail exists |
 | Backend has one stats repository | `handler.StatsRepository` and `repository/stats.go` | Split new domain repositories/services rather than growing `stats.go` indefinitely |
@@ -146,6 +146,7 @@ yeetcraft-companion/
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md
 │   ├── YEETCRAFT_INTEGRATION.md
+│   ├── COMBAT_LOG_FORMAT_V22.md
 │   └── COMBAT_LOG_CAPABILITIES.md
 ├── cmd/yeetcraft-companion/
 ├── internal/
@@ -295,7 +296,7 @@ Using a dedicated endpoint avoids forcing event semantics into `PATCH /api/stats
     "eventId": "sha256:...",
     "runId": "sha256:...",
     "occurredAt": "2026-07-30T19:43:12.123Z",
-    "player": {"guid": "Player-...", "name": "Niko", "realm": "..."},
+    "player": {"guid": "Player-9999-00000001", "name": "TrackedAlpha", "realm": "SyntheticRealm"},
     "dungeon": {"gameId": 0, "name": "Magisters' Terrace", "keyLevel": 12},
     "classification": {"category": "death", "confidence": 0.94},
     "cause": {
@@ -368,7 +369,29 @@ schema_migrations(version PRIMARY KEY, applied_at)
 
 The parser and uploader communicate through persisted state, not only in-memory channels. A crash after event creation but before upload therefore loses nothing. A crash after server acceptance but before local acknowledgement produces a duplicate request that the server safely acknowledges.
 
-### 6.4 File-reading algorithm
+### 6.4 Tracked and untracked roster boundary
+
+A Mythic+ group contains five players. Yeetcraft initially has four configured
+tracked characters; the fifth player is normally an untracked party member.
+
+The low-level parser remains neutral: it parses source and destination fields
+without deciding whether an identity belongs to Yeetcraft. Roster filtering
+happens after normalized parsing.
+
+- Deaths for an untracked party member do not become Yeetcraft statistics.
+- The companion must not create a Yeetcraft player automatically.
+- Names, realms, and GUIDs for untracked party members must not be uploaded.
+- An untracked member may have an anonymized local representation only when
+  required for run context.
+- Final GUID-to-tracked-character mapping remains an open design decision.
+
+```text
+combat-log line → neutral parser → normalized event → roster filter
+                                                   ├─ tracked candidate
+                                                   └─ anonymized local context
+```
+
+### 6.5 File-reading algorithm
 
 1. Resolve and fingerprint the selected combat-log file without hashing the entire growing file.
 2. Load the last committed byte offset and any incomplete trailing line.
@@ -379,7 +402,7 @@ The parser and uploader communicate through persisted state, not only in-memory 
 7. Detect replacement/rotation using file identity and a small prefix fingerprint.
 8. On restart, resume from the committed offset and rely on unique client event IDs for final protection.
 
-### 6.5 Death-cause inference
+### 6.6 Death-cause inference
 
 Maintain a short bounded ring buffer of recent relevant damage per tracked player. When a death event arrives, snapshot the buffer and rank likely causes. The last damage event is useful but not automatically the semantic cause; periodic damage, absorbs, environmental effects, and delayed mechanics can complicate the result.
 
@@ -389,7 +412,7 @@ Maintain a short bounded ring buffer of recent relevant damage per tracked playe
 | Medium | Several plausible recent hits or delayed effect | Accept death; mark cause as likely |
 | Low | No visible lethal source, environmental/fall gap, or incomplete context | Accept death; queue classification review |
 
-### 6.6 Run detection
+### 6.7 Run detection
 
 Run detection is a state machine, not a single regex. Phase 0 must determine which combat-log markers and instance metadata are present. The companion should support explicit states: **idle**, **candidate**, **active**, **completing**, **completed**, and **abandoned**. A timeout or process exit should close a run as interrupted rather than inventing a completion.
 
@@ -476,7 +499,56 @@ Deliverables:
 
 ### 8.2 Phase 0 — Combat-log evidence spike (bounded PoC)
 
-**Status: not started**
+**Status: Phase 0A.1 complete; Phase 0A.2 pending; Phase 0 is not complete**
+
+| Sub-phase | Scope | Maximum evidence status |
+| --------- | ----- | ----------------------- |
+| **0A.1** | Current-format research and original synthetic fixture preparation | Synthetic fixture prepared |
+| **0B (limited)** | Source-backed parser and resilience work that does not require a real log | Synthetically tested (technical sub-capabilities only) |
+| **0A.2** | Real retail 12.0+ Mythic+ log validation; adjusts Phase 0B assumptions | Partially verified / verified with real log |
+| **0B (full)** | Death detection, run/encounter inference, and cause accuracy after 0A.2 | Synthetically tested / partially verified |
+
+Phase 0A.1 produces the
+[V22 format reference](./COMBAT_LOG_FORMAT_V22.md) and
+[synthetic fixture corpus](../testdata/logs/synthetic/README.md). Synthetic
+fixtures establish test inputs, not real-world visibility or semantics.
+
+Phase 0B is splittable. Because a real Mythic+ log is not currently available,
+a **limited Phase 0B** may follow Phase 0A.1 without waiting for Phase 0A.2.
+Phase 0A.2 later validates and adjusts Phase 0B; it does not block all Phase 0B
+work.
+
+**Limited Phase 0B may implement and test:**
+
+- CSV-aware tokenization;
+- version-header CSV payload parsing;
+- unsupported-version handling;
+- common-header extraction;
+- exact source-backed damage event payloads (`SPELL_DAMAGE`, `SWING_DAMAGE`,
+  `ENVIRONMENTAL_DAMAGE`);
+- advanced-block extraction where the layout is exact in the selected V22
+  reference;
+- unknown and malformed input handling;
+- partial-line buffering.
+
+A technical sub-capability may reach **Synthetically tested** in limited Phase
+0B only when an implementation passes an exact source-backed fixture. Shape-
+incomplete death scenarios must not be promoted to passing success fixtures.
+
+**Blocked until Phase 0A.2 provides a real log:**
+
+- final raw timestamp-envelope compatibility;
+- exact V22 `UNIT_DIED` layout;
+- real party visibility;
+- real event ordering;
+- production-quality death detection;
+- run and encounter reliability;
+- death-cause accuracy;
+- yeet classification.
+
+Phase 0B design for advanced-block semantics remains open where the selected
+reference and observed V22 samples conflict. Do not infer suffix positions from
+approximate field counts.
 
 Deliverables:
 
@@ -487,10 +559,18 @@ Deliverables:
 - [ ] Capability matrix in [docs/COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
 - [ ] Test report: per-run expected vs detected deaths and likely-cause accuracy
 
+Phase 0A.1 deliverables:
+
+- [x] Current V22 format research, sources, and conflicts documented
+- [x] Original synthetic fixtures prepared and provenance recorded
+- [x] Capability vocabulary separates prepared fixtures from passing tests
+- [ ] Timestamp envelope and exact `UNIT_DIED` V22 suffix confirmed from a real
+  retail 12.0+ log (deferred to Phase 0A.2)
+
 Tasks:
 
 - [ ] Enable advanced combat logging on one client and collect multiple representative Mythic+ runs (ordinary deaths, wipe, environmental death, fall/void-like death, interrupted run)
-- [ ] Verify whether the logger sees deaths and preceding damage for Niko, Seb, Martin, and Niklas when each is in range
+- [ ] Verify whether the logger sees deaths and preceding damage for all four configured tracked characters when each is in range
 - [ ] Document available instance, difficulty, key-level, encounter, party, and completion markers
 - [ ] Measure ambiguity: missed deaths, wrong likely cause, duplicate candidates, uncertain run boundaries
 - [ ] Finalize capability matrix; decide which metadata is automatic, heuristic, or manual
@@ -680,7 +760,7 @@ The addon is deliberately **not** a dependency for the companion MVP. Consider i
 | Unknown death counting | Count as death until reviewed | Before ingest implementation |
 | Companion authentication | Dedicated revocable API key | Before E2E upload |
 | Retention | Keep structured local history; no raw upload | Before packaged release |
-| Player identity | GUID-first mapping to fixed Yeetcraft player | During Phase 0/1 |
+| Player identity | GUID-first mapping to configured tracked identities | During Phase 0/1 |
 | Run ID recipe | Deterministic from available run signals | After Phase 0 |
 | Partial batch response | Per-event results in HTTP 200 envelope | During contract review |
 | Supported OS | Windows amd64 only for MVP | Now |
@@ -713,6 +793,7 @@ Complete repository bootstrap first, then create **only** the Phase 0 spike. Avo
 | `AGENTS.md` | Repository boundaries, sibling reference, task scope, and safety rules |
 | `docs/IMPLEMENTATION_PLAN.md` | Markdown version of this architecture and phased plan |
 | `docs/YEETCRAFT_INTEGRATION.md` | API ownership, local sibling path, contracts, and integration test model |
+| `docs/COMBAT_LOG_FORMAT_V22.md` | Current V22 format fields, sources, conflicts, and open questions |
 | `README.md` | Purpose, prerequisites, current phase, non-goals, and basic commands |
 | `.gitignore` | Combat logs, SQLite, secrets, binaries, Wails output, and diagnostics |
 | `go.mod` + skeleton | Minimal standalone Go module with no Yeetcraft code imports |
@@ -806,5 +887,7 @@ Complete repository bootstrap first, then create **only** the Phase 0 spike. Avo
 ## Related documentation
 
 - [YEETCRAFT_INTEGRATION.md](./YEETCRAFT_INTEGRATION.md)
+- [COMBAT_LOG_FORMAT_V22.md](./COMBAT_LOG_FORMAT_V22.md)
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
+- [Synthetic fixture provenance](../testdata/logs/synthetic/README.md)
 - [AGENTS.md](../AGENTS.md)
