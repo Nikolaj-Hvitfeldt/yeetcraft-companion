@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,25 @@ func (r *fixedChunkReader) Read(p []byte) (int, error) {
 	copy(p, r.data[:n])
 	r.data = r.data[n:]
 	return n, nil
+}
+
+type scriptedRead struct {
+	data []byte
+	err  error
+}
+
+type scriptedReader struct {
+	reads []scriptedRead
+}
+
+func (r *scriptedReader) Read(p []byte) (int, error) {
+	if len(r.reads) == 0 {
+		return 0, io.EOF
+	}
+	read := r.reads[0]
+	r.reads = r.reads[1:]
+	n := copy(p, read.data)
+	return n, read.err
 }
 
 func TestScanReaderStreamsThroughHandler(t *testing.T) {
@@ -52,6 +72,29 @@ func TestScanReaderStreamsThroughHandler(t *testing.T) {
 	}
 }
 
+func TestScanReaderKeepsRecognizedEventGenericBeforeVersionHeader(t *testing.T) {
+	input := strings.Join(syntheticSpellDamage("SPELL_DAMAGE"), ",") + "\n"
+	state := &ParserState{}
+	var got Event
+	summary, err := ScanReader(strings.NewReader(input), DefaultMaxLineSize, state, func(event Event) error {
+		got = event
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Kind != KindGeneric || got.Typed.Status != TypedStatusNotApplicable ||
+		got.Typed.Payload != nil || got.Typed.Error != nil {
+		t.Fatalf("event = %#v", got)
+	}
+	if state.Format != FormatStateNone || state.VersionHeaders != 0 {
+		t.Fatalf("state = %#v", state)
+	}
+	if summary.TypedParsed != 0 || summary.TypedInvalid != 0 {
+		t.Fatalf("summary = %#v", summary)
+	}
+}
+
 func TestScanReaderHandlerErrorStopsImmediately(t *testing.T) {
 	sentinel := errors.New("stop handler")
 	calls := 0
@@ -70,6 +113,82 @@ func TestScanReaderHandlerErrorStopsImmediately(t *testing.T) {
 	}
 	if calls != 2 || summary.LinesComplete != 2 {
 		t.Fatalf("calls=%d summary=%#v", calls, summary)
+	}
+}
+
+func TestScanReaderRejectsZeroBytesWithoutError(t *testing.T) {
+	reader := &scriptedReader{reads: []scriptedRead{{}}}
+	summary, err := ScanReader(reader, DefaultMaxLineSize, &ParserState{}, func(Event) error {
+		t.Fatal("handler should not be called")
+		return nil
+	})
+	if err == nil || err.Error() != "read combat log: reader returned no data and no error" {
+		t.Fatalf("error = %v", err)
+	}
+	if summary.LinesComplete != 0 {
+		t.Fatalf("summary = %#v", summary)
+	}
+}
+
+func TestScanReaderProcessesCompleteBytesBeforeReadError(t *testing.T) {
+	privateErr := errors.New("private reader failure")
+	reader := &scriptedReader{reads: []scriptedRead{
+		{data: []byte("first\nsecond\n"), err: privateErr},
+	}}
+	var eventTypes []string
+	summary, err := ScanReader(reader, DefaultMaxLineSize, &ParserState{}, func(event Event) error {
+		eventTypes = append(eventTypes, event.EventType)
+		return nil
+	})
+	if !errors.Is(err, ErrReadCombatLog) || !errors.Is(err, privateErr) {
+		t.Fatalf("error = %v", err)
+	}
+	if summary.LinesComplete != 2 || len(eventTypes) != 2 ||
+		eventTypes[0] != "first" || eventTypes[1] != "second" {
+		t.Fatalf("summary=%#v eventTypes=%#v", summary, eventTypes)
+	}
+}
+
+func TestScanReaderReadErrorIsPrivacySafe(t *testing.T) {
+	privatePath := `C:\Users\PrivatePerson\WoWCombatLog-PrivateCharacter.txt`
+	privateMessage := "fictional private failure"
+	pathErr := &os.PathError{
+		Op:   "read",
+		Path: privatePath,
+		Err:  errors.New(privateMessage),
+	}
+	reader := &scriptedReader{reads: []scriptedRead{{err: pathErr}}}
+	_, err := ScanReader(reader, DefaultMaxLineSize, &ParserState{}, func(Event) error {
+		return nil
+	})
+	if !errors.Is(err, ErrReadCombatLog) || !errors.Is(err, pathErr) {
+		t.Fatalf("error classification = %v", err)
+	}
+	if err.Error() != ErrReadCombatLog.Error() {
+		t.Fatalf("error = %q", err)
+	}
+	for _, sensitive := range []string{privatePath, "PrivatePerson", "PrivateCharacter", privateMessage} {
+		if strings.Contains(err.Error(), sensitive) {
+			t.Fatalf("error exposed %q: %q", sensitive, err.Error())
+		}
+	}
+}
+
+func TestScanReaderProcessesCompleteBytesWithEOF(t *testing.T) {
+	reader := &scriptedReader{reads: []scriptedRead{
+		{data: []byte("first\nsecond\n"), err: io.EOF},
+	}}
+	var eventTypes []string
+	summary, err := ScanReader(reader, DefaultMaxLineSize, &ParserState{}, func(event Event) error {
+		eventTypes = append(eventTypes, event.EventType)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.LinesComplete != 2 || summary.IncompleteTail || len(eventTypes) != 2 ||
+		eventTypes[0] != "first" || eventTypes[1] != "second" {
+		t.Fatalf("summary=%#v eventTypes=%#v", summary, eventTypes)
 	}
 }
 

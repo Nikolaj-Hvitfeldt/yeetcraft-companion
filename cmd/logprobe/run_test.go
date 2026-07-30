@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -50,6 +51,24 @@ func TestRunFixtureExitCodes(t *testing.T) {
 				t.Fatalf("stdout = %q, want %q", stdout.String(), tt.contains)
 			}
 		})
+	}
+}
+
+func TestRunUnsupportedFormatTakesPrecedenceOverIncompleteTail(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "synthetic-unsupported-incomplete.txt")
+	content := "COMBAT_LOG_VERSION,99,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,99.0.0,PROJECT_ID,1\npartial"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{"--file", path}, &stdout, &stderr)
+	if exit != exitUnsupported {
+		t.Fatalf("exit = %d; stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "format_state: quarantined") ||
+		!strings.Contains(stdout.String(), "incomplete_trailing: 1") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
@@ -109,6 +128,36 @@ func TestRunSeparatesTypedErrorsAndDiagnostics(t *testing.T) {
 		if !strings.Contains(stdout.String(), expected) {
 			t.Fatalf("stdout = %q, want %q", stdout.String(), expected)
 		}
+	}
+}
+
+func TestRunAggregateTypedTotalsMatchPerEventCounters(t *testing.T) {
+	for _, fixture := range []string{"typed-damage-v22.txt", "typed-metadata-v22.txt", "typed-payload-invalid-v22.txt"} {
+		t.Run(fixture, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if exit := run([]string{"--file", fixturePath(fixture)}, &stdout, &stderr); exit != exitOK {
+				t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
+			}
+
+			eventNames := []string{
+				"spell_damage",
+				"range_damage",
+				"swing_damage",
+				"environmental_damage",
+				"encounter_start",
+				"encounter_end",
+				"challenge_mode_end",
+			}
+			var parsed, invalid int
+			for _, eventName := range eventNames {
+				parsed += outputCount(t, stdout.String(), "typed_"+eventName+"_parsed")
+				invalid += outputCount(t, stdout.String(), "typed_"+eventName+"_invalid")
+			}
+			if parsed != outputCount(t, stdout.String(), "typed_payloads_parsed") ||
+				invalid != outputCount(t, stdout.String(), "typed_payloads_invalid") {
+				t.Fatalf("typed totals disagree: parsed=%d invalid=%d output=%q", parsed, invalid, stdout.String())
+			}
+		})
 	}
 }
 
@@ -214,4 +263,20 @@ func TestClassifyScanErrorUsesFixedCategories(t *testing.T) {
 			}
 		})
 	}
+}
+
+func outputCount(t *testing.T, output, key string) int {
+	t.Helper()
+	prefix := key + ": "
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			value, err := strconv.Atoi(strings.TrimPrefix(line, prefix))
+			if err != nil {
+				t.Fatalf("parse %s: %v", key, err)
+			}
+			return value
+		}
+	}
+	t.Fatalf("missing output counter %q in %q", key, output)
+	return 0
 }

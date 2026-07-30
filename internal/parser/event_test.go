@@ -54,6 +54,23 @@ func TestInvalidCommonHeaderFlagsAreWarnings(t *testing.T) {
 	}
 }
 
+func TestCommonHeaderFlagsUseStrictHexTokens(t *testing.T) {
+	line := `UNIT_DIED,source,"Source",0X1,0xffffffff,dest,"Destination",10,010`
+	event := ParseLine(1, line, supportedState())
+	if event.Kind != KindCommonHeader || event.Common == nil {
+		t.Fatalf("event = %#v", event)
+	}
+	if event.Common.SourceFlags == nil || *event.Common.SourceFlags != 1 {
+		t.Fatalf("source flags = %#v", event.Common.SourceFlags)
+	}
+	if event.Common.SourceRaidFlags == nil || *event.Common.SourceRaidFlags != 0xffffffff {
+		t.Fatalf("source raid flags = %#v", event.Common.SourceRaidFlags)
+	}
+	if event.Common.DestFlags != nil || event.Common.DestRaidFlags != nil || len(event.Warnings) != 2 {
+		t.Fatalf("common=%#v warnings=%#v", event.Common, event.Warnings)
+	}
+}
+
 func TestKnownCommonHeaderTooShortIsMalformed(t *testing.T) {
 	event := ParseLine(1, `SPELL_DAMAGE,too,few`, supportedState())
 	if event.Kind != KindMalformed || event.Err == nil {

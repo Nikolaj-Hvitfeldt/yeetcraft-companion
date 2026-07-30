@@ -573,10 +573,10 @@ approximate field counts.
 Deliverables:
 
 - [ ] CLI probe (e.g. `cmd/logprobe`) accepting a combat-log path and optional tracked names/GUIDs
-- [ ] Streaming parser reporting recognized, unknown, and malformed event counts
+- [x] Streaming parser reporting recognized, unknown, and malformed event counts
 - [ ] Recent-damage buffers and death candidate output in `internal/detection/`
-- [ ] Anonymized fixture slices under [testdata/logs/](../testdata/logs/)
-- [ ] Capability matrix in [docs/COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
+- [x] Anonymized fixture slices under [testdata/logs/](../testdata/logs/)
+- [x] Capability matrix in [docs/COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
 - [ ] Test report: per-run expected vs detected deaths and likely-cause accuracy
 
 Phase 0A.1 deliverables:

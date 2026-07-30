@@ -2,7 +2,6 @@ package parser
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -10,7 +9,7 @@ import (
 // TokenizeCSV parses exactly one CSV record and preserves every field.
 func TokenizeCSV(payload string) ([]string, error) {
 	if payload == "" {
-		return nil, fmt.Errorf("%w: empty payload", ErrMalformedCSV)
+		return nil, ErrMalformedCSV
 	}
 
 	reader := csv.NewReader(strings.NewReader(payload))
@@ -19,13 +18,10 @@ func TokenizeCSV(payload string) ([]string, error) {
 
 	fields, err := reader.Read()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrMalformedCSV, err)
+		return nil, ErrMalformedCSV
 	}
 	if _, err := reader.Read(); err != io.EOF {
-		if err == nil {
-			return nil, fmt.Errorf("%w: multiple records in one payload", ErrMalformedCSV)
-		}
-		return nil, fmt.Errorf("%w: %v", ErrMalformedCSV, err)
+		return nil, ErrMalformedCSV
 	}
 	return fields, nil
 }

@@ -64,6 +64,7 @@ func ParseLine(lineNumber int, rawLine string, state *ParserState) Event {
 	}
 
 	if state.Format == FormatStateQuarantinedUnsupported || state.Format == FormatStateNone {
+		// Interpretation stays fail-closed until a supported version header is seen.
 		event.Kind = KindGeneric
 		event.Warnings = append(event.Warnings, "record preserved without supported format interpretation")
 		return event

@@ -86,7 +86,7 @@ func ScanReader(
 
 		if readErr != nil {
 			if readErr != io.EOF {
-				return summary, fmt.Errorf("read combat log: %w", readErr)
+				return summary, &scanReadError{cause: readErr}
 			}
 			tail, hasTail, err := lineReader.Finalize()
 			if err != nil {

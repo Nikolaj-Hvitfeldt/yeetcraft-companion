@@ -3,7 +3,6 @@ package parser
 import (
 	"math"
 	"strconv"
-	"strings"
 )
 
 const noUnitGUID = "0000000000000000"
@@ -82,14 +81,11 @@ func parseHexField(fields []string, eventType string, index int, name string) (u
 	if fields[index] == "" {
 		return 0, valueError(TypedErrorEmptyRequired, eventType, name, index)
 	}
-	if !strings.HasPrefix(fields[index], "0x") && !strings.HasPrefix(fields[index], "0X") {
+	value, ok := parseHexUint32(fields[index])
+	if !ok {
 		return 0, valueError(TypedErrorHex, eventType, name, index)
 	}
-	value, err := strconv.ParseUint(fields[index][2:], 16, 32)
-	if err != nil {
-		return 0, valueError(TypedErrorHex, eventType, name, index)
-	}
-	return uint32(value), nil
+	return value, nil
 }
 
 func parseFloatField(fields []string, eventType string, index int, name string) (float64, *TypedPayloadError) {

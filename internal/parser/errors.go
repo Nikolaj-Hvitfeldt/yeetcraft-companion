@@ -21,7 +21,24 @@ var (
 	ErrUnsupportedProject       = errors.New("unsupported combat log project")
 	ErrMalformedCSV             = errors.New("malformed combat log CSV")
 	ErrEventHandler             = errors.New("combat log event handler failed")
+	ErrReadCombatLog            = errors.New("combat log read failed")
 )
+
+type scanReadError struct {
+	cause error
+}
+
+func (e *scanReadError) Error() string {
+	return ErrReadCombatLog.Error()
+}
+
+func (e *scanReadError) Unwrap() error {
+	return e.cause
+}
+
+func (e *scanReadError) Is(target error) bool {
+	return target == ErrReadCombatLog
+}
 
 // LineError adds an operation and line number without exposing log content.
 type LineError struct {

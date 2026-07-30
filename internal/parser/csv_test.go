@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -41,5 +42,25 @@ func TestTokenizeCSV(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMalformedCSVErrorIsFixedAndPrivacySafe(t *testing.T) {
+	privateValue := `Private Player-Realm`
+	_, err := TokenizeCSV(`EVENT,"` + privateValue)
+	if !errors.Is(err, ErrMalformedCSV) {
+		t.Fatalf("error = %v", err)
+	}
+	if err.Error() != ErrMalformedCSV.Error() || strings.Contains(err.Error(), privateValue) {
+		t.Fatalf("error = %q", err)
+	}
+
+	event := ParseLine(7, `EVENT,"`+privateValue, supportedState())
+	if event.Kind != KindMalformed || event.Malformed != MalformedCSV ||
+		!errors.Is(event.Err, ErrMalformedCSV) {
+		t.Fatalf("event = %#v", event)
+	}
+	if strings.Contains(event.Err.Error(), privateValue) {
+		t.Fatalf("event error exposed private value: %q", event.Err)
 	}
 }

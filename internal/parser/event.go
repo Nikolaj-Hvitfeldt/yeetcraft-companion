@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 )
 
 type Kind int
@@ -104,11 +103,10 @@ func extractCommonHeader(fields []string) (*CommonHeader, []string, error) {
 }
 
 func parseFlag(raw, label string, warnings *[]string) *uint32 {
-	value, err := strconv.ParseUint(raw, 0, 32)
-	if err != nil {
+	value, ok := parseHexUint32(raw)
+	if !ok {
 		*warnings = append(*warnings, fmt.Sprintf("invalid %s", label))
 		return nil
 	}
-	parsed := uint32(value)
-	return &parsed
+	return &value
 }

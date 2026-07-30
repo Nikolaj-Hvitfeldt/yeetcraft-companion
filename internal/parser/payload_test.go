@@ -463,6 +463,24 @@ func TestSourceExpectationDiagnosticsRetainPayload(t *testing.T) {
 	}
 }
 
+func TestMultipleDiagnosticsRetainParsedPayload(t *testing.T) {
+	fields := syntheticEnvironmentalDamage()
+	fields[1] = "Creature-Unexpected"
+	fields[9] = "Player-Other"
+	fields[17] = "7"
+	fields[28] = "FutureHazard"
+
+	event := parseSyntheticFields(fields)
+	want := DiagnosticEnvironmentalSourceNotZero |
+		DiagnosticAdvancedInfoGUIDMismatch |
+		DiagnosticAdvancedUnknownFieldNonZero |
+		DiagnosticEnvironmentalTypeUnknown
+	if event.Typed.Status != TypedStatusParsed || event.Typed.Payload == nil ||
+		event.Typed.Error != nil || event.Typed.Diagnostics != want {
+		t.Fatalf("typed = %#v, want diagnostics %#x", event.Typed, want)
+	}
+}
+
 func TestTypedErrorAndDiagnosticsArePrivacySafe(t *testing.T) {
 	fields := syntheticSpellDamage("SPELL_DAMAGE")
 	fields[1] = "Player-Private-GUID"
