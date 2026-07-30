@@ -1,0 +1,14 @@
+# Normalize text files to LF in the repository (Windows dev, Linux CI).
+* text=auto eol=lf
+
+# Common binary formats (safety; none currently tracked).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
