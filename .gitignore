@@ -1,0 +1,71 @@
+# Local secrets (keep .env.example tracked)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+secrets/
+
+# Local SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Raw combat logs (never commit real player logs)
+WoWCombatLog*.txt
+CombatLog*.txt
+**/Logs/WoWCombatLog*.txt
+
+# Application logs and diagnostics (keep testdata/logs/ fixtures)
+*.log
+/logs/
+/diagnostics/
+!testdata/
+!testdata/**
+
+# Build output
+bin/
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go tooling
+coverage.out
+coverage.html
+*.test
+*.out
+
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Wails / frontend build artifacts (future)
+frontend/node_modules/
+frontend/dist/
+
+# Local workspace and AI-generated working files
+*.code-workspace
+.cursor/
+agent-output/
+plans/drafts/
+*.local.md
+
+# Do not ignore intentional fixtures under testdata/
