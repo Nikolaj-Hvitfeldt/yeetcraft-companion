@@ -20,6 +20,7 @@ var (
 	ErrUnsupportedFormatVersion = errors.New("unsupported combat log format version")
 	ErrUnsupportedProject       = errors.New("unsupported combat log project")
 	ErrMalformedCSV             = errors.New("malformed combat log CSV")
+	ErrEventHandler             = errors.New("combat log event handler failed")
 )
 
 // LineError adds an operation and line number without exposing log content.

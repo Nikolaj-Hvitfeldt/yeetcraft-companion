@@ -2,9 +2,31 @@ package parser
 
 import (
 	"errors"
+	"io"
 	"strings"
 	"testing"
 )
+
+type fixedChunkReader struct {
+	data []byte
+	size int
+}
+
+func (r *fixedChunkReader) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := r.size
+	if n > len(r.data) {
+		n = len(r.data)
+	}
+	if n > len(p) {
+		n = len(p)
+	}
+	copy(p, r.data[:n])
+	r.data = r.data[n:]
+	return n, nil
+}
 
 func TestScanReaderStreamsThroughHandler(t *testing.T) {
 	input := strings.Join([]string{
@@ -43,6 +65,9 @@ func TestScanReaderHandlerErrorStopsImmediately(t *testing.T) {
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("error = %v", err)
 	}
+	if !errors.Is(err, ErrEventHandler) {
+		t.Fatalf("error does not classify handler failure: %v", err)
+	}
 	if calls != 2 || summary.LinesComplete != 2 {
 		t.Fatalf("calls=%d summary=%#v", calls, summary)
 	}
@@ -74,5 +99,38 @@ func TestScanReaderContinuesAfterMalformedCSV(t *testing.T) {
 	}
 	if len(kinds) != 3 || kinds[1] != KindMalformed || kinds[2] != KindUnknownEvent {
 		t.Fatalf("kinds = %#v", kinds)
+	}
+}
+
+func TestScanReaderParsesTypedEventAcrossChunkBoundaries(t *testing.T) {
+	input := "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1\n" +
+		strings.Join(syntheticSpellDamage("SPELL_DAMAGE"), ",") + "\n"
+	reader := &fixedChunkReader{data: []byte(input), size: 7}
+	var typed TypedResult
+	summary, err := ScanReader(reader, DefaultMaxLineSize, &ParserState{}, func(event Event) error {
+		if event.EventType == "SPELL_DAMAGE" {
+			typed = event.Typed
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.TypedParsed != 1 || typed.Status != TypedStatusParsed || typed.Payload == nil {
+		t.Fatalf("summary=%#v typed=%#v", summary, typed)
+	}
+}
+
+func TestScanReaderOversizedTypedLineIsTerminal(t *testing.T) {
+	input := "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1\n" +
+		strings.Join(syntheticSpellDamage("SPELL_DAMAGE"), ",") + "\n"
+	summary, err := ScanReader(strings.NewReader(input), 100, &ParserState{}, func(Event) error {
+		return nil
+	})
+	if !errors.Is(err, ErrLineTooLong) {
+		t.Fatalf("error = %v", err)
+	}
+	if summary.LinesComplete != 1 || summary.TypedParsed != 0 {
+		t.Fatalf("summary = %#v", summary)
 	}
 }

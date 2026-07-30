@@ -14,6 +14,29 @@ type ScanSummary struct {
 	EmptyLines          int
 	IncompleteTail      bool
 	IncompleteTailBytes int
+	TypedParsed         int
+	TypedInvalid        int
+	TypedErrors         TypedErrorSummary
+	Diagnostics         ValidationDiagnosticSummary
+}
+
+type TypedErrorSummary struct {
+	FieldCount    int
+	EmptyRequired int
+	Integer       int
+	Hex           int
+	Float         int
+	Boolean       int
+}
+
+type ValidationDiagnosticSummary struct {
+	Total                       int
+	AdvancedInfoGUIDMismatch    int
+	EnvironmentalSourceNotZero  int
+	SwingSchoolUnexpected       int
+	AbilityHintUnknown          int
+	EnvironmentalTypeUnknown    int
+	AdvancedUnknownFieldNonZero int
 }
 
 // ScanReader parses complete lines incrementally and never retains all events.
@@ -51,8 +74,9 @@ func ScanReader(
 				if event.Kind == KindEmpty {
 					summary.EmptyLines++
 				}
+				recordTypedSummary(&summary, event.Typed)
 				if err := handle(event); err != nil {
-					return summary, fmt.Errorf("handle combat log line %d: %w", lineNumber, err)
+					return summary, fmt.Errorf("%w at combat log line %d: %w", ErrEventHandler, lineNumber, err)
 				}
 			}
 			if lineErr != nil {
@@ -74,6 +98,49 @@ func ScanReader(
 		}
 		if n == 0 {
 			return summary, fmt.Errorf("read combat log: reader returned no data and no error")
+		}
+	}
+}
+
+func recordTypedSummary(summary *ScanSummary, typed TypedResult) {
+	switch typed.Status {
+	case TypedStatusParsed:
+		summary.TypedParsed++
+	case TypedStatusInvalid:
+		summary.TypedInvalid++
+		if typed.Error == nil {
+			return
+		}
+		switch typed.Error.Kind {
+		case TypedErrorFieldCount:
+			summary.TypedErrors.FieldCount++
+		case TypedErrorEmptyRequired:
+			summary.TypedErrors.EmptyRequired++
+		case TypedErrorInteger:
+			summary.TypedErrors.Integer++
+		case TypedErrorHex:
+			summary.TypedErrors.Hex++
+		case TypedErrorFloat:
+			summary.TypedErrors.Float++
+		case TypedErrorBoolean:
+			summary.TypedErrors.Boolean++
+		}
+	}
+
+	for _, diagnostic := range []struct {
+		flag    ValidationDiagnostics
+		counter *int
+	}{
+		{DiagnosticAdvancedInfoGUIDMismatch, &summary.Diagnostics.AdvancedInfoGUIDMismatch},
+		{DiagnosticEnvironmentalSourceNotZero, &summary.Diagnostics.EnvironmentalSourceNotZero},
+		{DiagnosticSwingSchoolUnexpected, &summary.Diagnostics.SwingSchoolUnexpected},
+		{DiagnosticAbilityHintUnknown, &summary.Diagnostics.AbilityHintUnknown},
+		{DiagnosticEnvironmentalTypeUnknown, &summary.Diagnostics.EnvironmentalTypeUnknown},
+		{DiagnosticAdvancedUnknownFieldNonZero, &summary.Diagnostics.AdvancedUnknownFieldNonZero},
+	} {
+		if typed.Diagnostics.Has(diagnostic.flag) {
+			(*diagnostic.counter)++
+			summary.Diagnostics.Total++
 		}
 	}
 }

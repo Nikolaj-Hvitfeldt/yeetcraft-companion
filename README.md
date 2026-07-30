@@ -19,15 +19,23 @@ These are **separate products**:
 
 ## Current status
 
-**Foundation only.** The repository contains package placeholders and a minimal CLI entrypoint. The following are **not** implemented yet:
+**Phase 0 evidence work is in progress.** The repository contains a bounded
+streaming V22 parser, source-backed typed parsing for selected damage and
+metadata events, fail-closed version/project quarantine, synthetic fixtures,
+and the privacy-safe `cmd/logprobe` diagnostic CLI.
 
-- Combat-log parsing
+The following are **not** implemented yet:
+
 - File watching
 - Local SQLite storage
-- Session detection
+- Death, cause, identity, or run detection
 - Upload to Yeetcraft
 - Review UI (including a future Wails-based desktop shell)
 - WoW addon integration (deferred)
+
+Typed parsing is synthetically tested against the project's selected canonical
+V22 reference. It is not verification against a real retail log and does not
+establish that one logger can observe deaths or causes reliably.
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the planned phases.
 

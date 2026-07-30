@@ -67,3 +67,39 @@ func TestFocusedSyntheticFixtures(t *testing.T) {
 		})
 	}
 }
+
+func TestTypedSyntheticFixtures(t *testing.T) {
+	tests := []struct {
+		name              string
+		wantParsed        int
+		wantInvalid       int
+		wantDiagnostics   int
+		wantIntegerErrors int
+	}{
+		{"typed-damage-v22.txt", 5, 0, 0, 0},
+		{"typed-metadata-v22.txt", 6, 0, 0, 0},
+		{"typed-payload-invalid-v22.txt", 2, 1, 3, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join("..", "..", "testdata", "logs", "synthetic", tt.name)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			summary, err := ScanReader(bytes.NewReader(data), DefaultMaxLineSize, &ParserState{}, func(Event) error {
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if summary.TypedParsed != tt.wantParsed ||
+				summary.TypedInvalid != tt.wantInvalid ||
+				summary.Diagnostics.Total != tt.wantDiagnostics ||
+				summary.TypedErrors.Integer != tt.wantIntegerErrors {
+				t.Fatalf("summary = %#v", summary)
+			}
+		})
+	}
+}

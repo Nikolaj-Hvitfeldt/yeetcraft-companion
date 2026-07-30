@@ -4,7 +4,7 @@ Phase 0 capability matrix and evidence log for the Yeetcraft companion.
 
 | | |
 | --- | --- |
-| **Phase** | 0A.1 and 0B.1 complete — Phase 0A.2 real-log validation pending |
+| **Phase** | 0A.1, 0B.1, and limited 0B.2 complete — Phase 0A.2 real-log validation pending |
 | **Last updated** | 2026-07-30 |
 | **Fixtures** | Original synthetic corpus ([provenance](../testdata/logs/synthetic/README.md)) |
 
@@ -127,6 +127,18 @@ verified with a real log in this phase.
 | Provisional signed-offset envelope | Synthetically tested | [`timestamp-signed-offset.txt`](../testdata/logs/synthetic/timestamp-signed-offset.txt) | Shape matching only; not verified against a real 12.0+ log |
 | Malformed category reporting | Synthetically tested | CLI tests for CSV, version-header, and common-header counts | Diagnostics expose counts only, never record contents |
 
+### Typed payload parsing (limited Phase 0B.2)
+
+| Technical capability | Status | Evidence | Boundary |
+| -------------------- | ------ | -------- | -------- |
+| `SPELL_DAMAGE` and `RANGE_DAMAGE` typed payloads | Synthetically tested | [`typed-damage-v22.txt`](../testdata/logs/synthetic/typed-damage-v22.txt) and parser tests | Exact selected-reference advanced-enabled V22 layout only |
+| `SWING_DAMAGE` typed payload and optional off-hand field | Synthetically tested | [`typed-damage-v22.txt`](../testdata/logs/synthetic/typed-damage-v22.txt) and parser tests | Main-hand omission and explicit `nil`/`1` are structural states; no damage inference |
+| `ENVIRONMENTAL_DAMAGE` typed payload | Synthetically tested | [`typed-damage-v22.txt`](../testdata/logs/synthetic/typed-damage-v22.txt) and parser tests | Event parsing does not establish a death or yeet |
+| Advanced combat-log block | Synthetically tested | Typed parser field-offset and numeric-boundary tests | Ownership and source expectations are non-fatal diagnostics, not real-log verification |
+| `ENCOUNTER_START`, `ENCOUNTER_END`, and `CHALLENGE_MODE_END` payloads | Synthetically tested | [`typed-metadata-v22.txt`](../testdata/logs/synthetic/typed-metadata-v22.txt) and parser tests | Neutral metadata parsing only; visibility and run semantics unverified |
+| Structural typed failures vs source-expectation diagnostics | Synthetically tested | [`typed-payload-invalid-v22.txt`](../testdata/logs/synthetic/typed-payload-invalid-v22.txt), parser and CLI tests | Errors remove typed payloads; diagnostics retain them; counters expose no raw values |
+| `CHALLENGE_MODE_START` typed payload | Documented, excluded | Selected reference declares an integer array but not exact raw CSV serialization | Event remains recognized with `TypedStatusNotApplicable` |
+
 ### Documented format references
 
 Exact line, header, common-field, advanced-block, and event layouts are kept in
@@ -136,11 +148,14 @@ success test in Phase 0A.1.
 
 ---
 
-## Status summary (Phase 0B.1)
+## Status summary (limited Phase 0B.2)
 
-- Parser-foundation technical capabilities listed above are **Synthetically tested**.
+- Parser-foundation and selected typed-parsing technical capabilities listed
+  above are **Synthetically tested**.
 - Shape-incomplete death scenarios remain no higher than **Documented** or
   **Synthetic fixture prepared**; no death capability was promoted.
+- No run detection, identity mapping, boss attribution, cause ranking, or
+  yeet classification capability was promoted.
 - No real Mythic+ log was examined, so nothing is **Partially verified** or
   **Verified with real log**.
 - Exact counts should be generated when the matrix is next revised rather than
@@ -185,6 +200,7 @@ When recording observations (Phase 0 onward):
 | ---- | ----- | ----------- | ---------- | ------- | ------------------- | ------------------- |
 | 2026-07-30 | V22 docs target 12.0+ | Not applicable | Synthetic preparation | [`synthetic/`](../testdata/logs/synthetic/README.md) | Original fixtures prepared; timestamp envelope and `UNIT_DIED` suffix unresolved; no parser or real-log validation | Format-related rows only |
 | 2026-07-30 | V22 docs target 12.0+ | Not applicable | Phase 0B.1 technical tests | [`synthetic/`](../testdata/logs/synthetic/README.md) | Bounded streaming, CSV, common-header, unknown, malformed, partial-tail, and version-quarantine tests pass; no death inference | File mechanics and parser foundation only |
+| 2026-07-30 | V22 selected reference targets 12.0+ | Not applicable | Limited Phase 0B.2 technical tests | [`typed-damage-v22.txt`](../testdata/logs/synthetic/typed-damage-v22.txt), [`typed-metadata-v22.txt`](../testdata/logs/synthetic/typed-metadata-v22.txt), [`typed-payload-invalid-v22.txt`](../testdata/logs/synthetic/typed-payload-invalid-v22.txt) | Seven selected layouts parse into typed payloads; primitive failures and non-fatal diagnostics are separately counted; no real log or death semantics | Typed parser rows only |
 
 ---
 

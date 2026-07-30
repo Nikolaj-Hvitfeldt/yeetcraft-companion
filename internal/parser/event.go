@@ -54,6 +54,7 @@ type Event struct {
 	Warnings   []string
 	Err        error
 	Malformed  MalformedKind
+	Typed      TypedResult
 }
 
 var metadataEvents = map[string]struct{}{

@@ -10,8 +10,8 @@ not claim that a real Mythic+ log has been inspected.
 
 ## Source claims and project conclusion
 
-The selected current reference, the WowCoach.gg machine-readable specification,
-states:
+The selected canonical project reference, the WowCoach.gg machine-readable
+specification, states:
 
 - `format_version: 22`;
 - `verified_against_patch: 12.0+`;
@@ -25,6 +25,24 @@ is retained as a source claim only. The project's narrower conclusion is:
 
 The project has not independently established V22 behavior on 11.x or verified
 the format against a real 12.0+ Mythic+ log.
+
+WowCoach is a publisher-maintained empirical specification, not an official
+Blizzard specification. Phase 0B.2 is source-backed by this selected project
+reference.
+
+The exact bytes retrieved from the canonical URL on 2026-07-30 produced this
+SHA-256 hash twice:
+
+```text
+C8586DB53554D9C1688BE669BEF57729BD779FBE7E897073B4FB60A8A48359B9
+```
+
+Snapshot metadata:
+
+- canonical URL: <https://wowcoach.gg/docs/combat-log/spec.yaml>;
+- retrieval date: 2026-07-30;
+- declared format version: 22;
+- declared verified patch: 12.0+.
 
 ## Line envelope and unresolved timestamp conflict
 
@@ -143,8 +161,9 @@ instead of assuming ownership.
 
 The V22 parser issue confirms the inserted two fields at relative offsets 8–9,
 but observed `unknown_1` was nonzero despite the selected specification saying
-it is always zero. The fixture values are synthetic and do not assign semantics
-to either unknown field.
+it is always zero. Phase 0B.2 parses both fields as signed 64-bit integers and
+records a bounded validation diagnostic when either is nonzero. The typed
+payload remains available, and no semantics are assigned to either field.
 
 ## Exact event layouts
 
@@ -214,6 +233,12 @@ The selected specification says the source GUID is
 Documented environmental types are `Falling`, `Lava`, `Fire`, `Slime`,
 `Drowning`, and `Fatigue`.
 
+For damage `bool_or_nil` fields, the selected reference prose documents `1`
+for true and literal `nil` otherwise. Phase 0B.2 accepts exactly those tokens;
+it does not invent a false state. Optional `SWING_DAMAGE.is_off_hand` has three
+states: omitted field, explicit `nil`, or `1`. Empty fields and `0` are not
+equivalent to omission or `nil`.
+
 ### `UNIT_DIED`
 
 The selected V22 specification confirms the common header, no spell prefix, and
@@ -267,6 +292,10 @@ Difficulty ID `8` is documented as Mythic+.
 | 4 | `keystone_level` |
 | 5 | `affixes` integer array |
 
+The selected reference does not define how the comma-containing integer array
+is quoted or escaped in the raw CSV. `CHALLENGE_MODE_START` therefore remains
+recognized metadata with no Phase 0B.2 typed parser.
+
 ### `CHALLENGE_MODE_END`
 
 | Offset | Field |
@@ -289,9 +318,17 @@ without waiting for Phase 0A.2. Suitable now:
 
 - version-header CSV payload;
 - common header;
-- `SPELL_DAMAGE`, `SWING_DAMAGE`, and `ENVIRONMENTAL_DAMAGE` suffix tables;
+- `SPELL_DAMAGE`, `RANGE_DAMAGE`, `SWING_DAMAGE`, and
+  `ENVIRONMENTAL_DAMAGE` suffix tables;
 - advanced block where offsets are exact in this document;
-- metadata events with complete suffix tables (`ENCOUNTER_*`, `CHALLENGE_MODE_*`).
+- `ENCOUNTER_START`, `ENCOUNTER_END`, and `CHALLENGE_MODE_END` metadata.
+
+Typed parsing validates exact field widths and primitive types. Source
+expectations such as advanced-block GUID ownership, zero environmental source,
+physical swing school, known string-enum values, and zero advanced unknown
+fields are non-fatal validation diagnostics. Unknown non-empty
+`ability_hint` and `environmental_type` values remain available in typed
+payloads but are never printed by the default CLI.
 
 Blocked or shape-incomplete until Phase 0A.2:
 
@@ -314,6 +351,8 @@ limited parser work.
    selected spec's “always zero” note.
 6. **Real behavior:** visibility, ordering, and semantics in Mythic+ require
    Phase 0A.2 evidence.
+7. **`CHALLENGE_MODE_START`:** the raw CSV serialization of the documented
+   affix integer array is not exact in the selected reference.
 
 ## External sources
 
@@ -322,7 +361,7 @@ All sources were accessed 2026-07-30.
 | Source title | URL | Documented format/game version | Use |
 | ------------ | --- | ------------------------------ | --- |
 | WoW Combat Log Reference | <https://wowcoach.gg/docs/combat-log> | V22; retail patch 12.0+ | Current overview |
-| WoW Combat Log Format Specification | <https://wowcoach.gg/docs/combat-log/spec.yaml> | V22; verified against 12.0+; updated 2026-05-08 | Primary field offsets |
+| WoW Combat Log Format Specification | <https://wowcoach.gg/docs/combat-log/spec.yaml> | V22; verified against 12.0+; updated 2026-05-08 | Selected canonical project field reference |
 | Line Format & Common Header | <https://wowcoach.gg/docs/combat-log/line-format> | V22; source also claims 11.x and 12.0+ | Envelope, header, common fields |
 | Advanced Combat Logging | <https://wowcoach.gg/docs/combat-log/advanced-logging> | Current V22 reference | Advanced block |
 | Metadata & Other Event Suffixes | <https://wowcoach.gg/docs/combat-log/metadata-events> | Current V22 reference | Encounter and challenge fields |

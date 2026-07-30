@@ -26,6 +26,22 @@ type eventCounts struct {
 	malformedVersion int
 	malformedCommon  int
 	malformedOther   int
+	typed            typedEventCounts
+}
+
+type parsedInvalidCounts struct {
+	parsed  int
+	invalid int
+}
+
+type typedEventCounts struct {
+	spellDamage      parsedInvalidCounts
+	rangeDamage      parsedInvalidCounts
+	swingDamage      parsedInvalidCounts
+	environmental    parsedInvalidCounts
+	encounterStart   parsedInvalidCounts
+	encounterEnd     parsedInvalidCounts
+	challengeModeEnd parsedInvalidCounts
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -49,7 +65,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	file, err := os.Open(*filePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "open combat log: %v\n", err)
+		fmt.Fprintln(stderr, "open combat log: unable to open requested file")
 		return exitFailure
 	}
 	defer file.Close()
@@ -78,10 +94,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 				counts.malformedOther++
 			}
 		}
+		counts.typed.record(event)
 		return nil
 	})
 	if err != nil {
-		fmt.Fprintf(stderr, "scan combat log: %v\n", err)
+		writeScanError(stderr, err)
 		return exitFailure
 	}
 
@@ -103,6 +120,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "malformed_version_headers: %d\n", counts.malformedVersion)
 	fmt.Fprintf(stdout, "malformed_common_headers: %d\n", counts.malformedCommon)
 	fmt.Fprintf(stdout, "malformed_other_records: %d\n", counts.malformedOther)
+	fmt.Fprintf(stdout, "typed_payloads_parsed: %d\n", summary.TypedParsed)
+	fmt.Fprintf(stdout, "typed_payloads_invalid: %d\n", summary.TypedInvalid)
+	fmt.Fprintf(stdout, "typed_error_field_count: %d\n", summary.TypedErrors.FieldCount)
+	fmt.Fprintf(stdout, "typed_error_empty_required: %d\n", summary.TypedErrors.EmptyRequired)
+	fmt.Fprintf(stdout, "typed_error_integer: %d\n", summary.TypedErrors.Integer)
+	fmt.Fprintf(stdout, "typed_error_hex: %d\n", summary.TypedErrors.Hex)
+	fmt.Fprintf(stdout, "typed_error_float: %d\n", summary.TypedErrors.Float)
+	fmt.Fprintf(stdout, "typed_error_boolean: %d\n", summary.TypedErrors.Boolean)
+	printTypedEventCounts(stdout, "spell_damage", counts.typed.spellDamage)
+	printTypedEventCounts(stdout, "range_damage", counts.typed.rangeDamage)
+	printTypedEventCounts(stdout, "swing_damage", counts.typed.swingDamage)
+	printTypedEventCounts(stdout, "environmental_damage", counts.typed.environmental)
+	printTypedEventCounts(stdout, "encounter_start", counts.typed.encounterStart)
+	printTypedEventCounts(stdout, "encounter_end", counts.typed.encounterEnd)
+	printTypedEventCounts(stdout, "challenge_mode_end", counts.typed.challengeModeEnd)
+	fmt.Fprintf(stdout, "validation_diagnostics: %d\n", summary.Diagnostics.Total)
+	fmt.Fprintf(stdout, "validation_advanced_info_guid_mismatch: %d\n", summary.Diagnostics.AdvancedInfoGUIDMismatch)
+	fmt.Fprintf(stdout, "validation_environmental_source_not_zero: %d\n", summary.Diagnostics.EnvironmentalSourceNotZero)
+	fmt.Fprintf(stdout, "validation_swing_school_unexpected: %d\n", summary.Diagnostics.SwingSchoolUnexpected)
+	fmt.Fprintf(stdout, "validation_ability_hint_unknown: %d\n", summary.Diagnostics.AbilityHintUnknown)
+	fmt.Fprintf(stdout, "validation_environmental_type_unknown: %d\n", summary.Diagnostics.EnvironmentalTypeUnknown)
+	fmt.Fprintf(stdout, "validation_advanced_unknown_field_non_zero: %d\n", summary.Diagnostics.AdvancedUnknownFieldNonZero)
 	fmt.Fprintf(stdout, "incomplete_trailing: %d\n", boolInt(summary.IncompleteTail))
 	fmt.Fprintf(stdout, "incomplete_trailing_bytes: %d\n", summary.IncompleteTailBytes)
 	fmt.Fprintf(stdout, "format_state: %s\n", state.Format)
@@ -114,6 +153,54 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return exitIncomplete
 	}
 	return exitOK
+}
+
+func writeScanError(writer io.Writer, err error) {
+	fmt.Fprintln(writer, classifyScanError(err))
+}
+
+func classifyScanError(err error) string {
+	switch {
+	case errors.Is(err, parser.ErrLineTooLong):
+		return "scan combat log: oversized line"
+	case errors.Is(err, parser.ErrEventHandler):
+		return "scan combat log: event handler failed"
+	default:
+		return "scan combat log: read or parse failure"
+	}
+}
+
+func (counts *typedEventCounts) record(event parser.Event) {
+	var target *parsedInvalidCounts
+	switch event.EventType {
+	case "SPELL_DAMAGE":
+		target = &counts.spellDamage
+	case "RANGE_DAMAGE":
+		target = &counts.rangeDamage
+	case "SWING_DAMAGE":
+		target = &counts.swingDamage
+	case "ENVIRONMENTAL_DAMAGE":
+		target = &counts.environmental
+	case "ENCOUNTER_START":
+		target = &counts.encounterStart
+	case "ENCOUNTER_END":
+		target = &counts.encounterEnd
+	case "CHALLENGE_MODE_END":
+		target = &counts.challengeModeEnd
+	default:
+		return
+	}
+	switch event.Typed.Status {
+	case parser.TypedStatusParsed:
+		target.parsed++
+	case parser.TypedStatusInvalid:
+		target.invalid++
+	}
+}
+
+func printTypedEventCounts(writer io.Writer, eventName string, counts parsedInvalidCounts) {
+	fmt.Fprintf(writer, "typed_%s_parsed: %d\n", eventName, counts.parsed)
+	fmt.Fprintf(writer, "typed_%s_invalid: %d\n", eventName, counts.invalid)
 }
 
 func boolInt(value bool) int {

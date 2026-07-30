@@ -21,6 +21,8 @@ selected V22 specification does not enumerate the `UNIT_DIED` suffix. Therefore:
 - timestamped death-scenario fixtures use the observed V22 timestamp shape
   provisionally and are labeled `shape-incomplete`;
 - all fixtures containing `UNIT_DIED` are `shape-incomplete`;
+- `CHALLENGE_MODE_START` remains untyped because the selected reference does
+  not define the raw CSV serialization of its comma-containing affix array;
 - focused technical fixtures may be parser success tests without verifying the
   timestamp envelope or event semantics.
 
@@ -29,6 +31,11 @@ CSV tokenization, common-header extraction, unknown input, and version
 quarantine. Shape-incomplete death scenarios remain unsuitable as death-
 detection success fixtures. Phase 0A.2 must validate and adjust the provisional
 envelope behavior.
+
+Limited Phase 0B.2 passes exact-layout synthetic fixtures for seven selected
+typed damage and metadata layouts. Structural typed failures and non-fatal
+source-expectation diagnostics are tested separately. This does not promote
+death, run, identity, boss, cause, or yeet capabilities.
 
 ## Fictional roster
 
@@ -66,6 +73,9 @@ be uploaded.
 | `version-project-id-2.txt` | Synthetically tested unsupported project | V22 header with fictional non-retail project selection | Retail-only project validation |
 | `version-project-id-non-integer.txt` | Synthetically tested malformed project ID | V22 header with non-integer project value | Malformed header quarantine |
 | `timestamp-signed-offset.txt` | Synthetically tested provisional reference envelope | Reference timestamp shape with signed offset and two-space separator | Raw-envelope preservation; not real-log verification |
+| `typed-damage-v22.txt` | Synthetically tested technical payloads | WowCoach selected canonical `spec.yaml`: exact advanced-enabled `SPELL_DAMAGE`, `RANGE_DAMAGE`, `SWING_DAMAGE`, and `ENVIRONMENTAL_DAMAGE` offsets | Typed payloads, advanced ownership placement, nullable booleans, and optional off-hand field |
+| `typed-metadata-v22.txt` | Synthetically tested technical payloads | WowCoach selected canonical `spec.yaml`: exact `ENCOUNTER_START`, `ENCOUNTER_END`, and `CHALLENGE_MODE_END` offsets | Neutral metadata parsing with documented trailing optional fields |
+| `typed-payload-invalid-v22.txt` | Synthetically tested invalid and diagnostic input | Exact selected-reference widths with synthetic primitive and source-expectation deviations | Separate typed parse errors from non-fatal diagnostics; verify privacy-safe counters |
 
 Primary source URLs:
 

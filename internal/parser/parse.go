@@ -71,6 +71,7 @@ func ParseLine(lineNumber int, rawLine string, state *ParserState) Event {
 
 	if _, ok := metadataEvents[event.EventType]; ok {
 		event.Kind = KindMetadata
+		event.Typed = parseTypedPayload(event.EventType, fields, nil)
 		return event
 	}
 
@@ -85,6 +86,7 @@ func ParseLine(lineNumber int, rawLine string, state *ParserState) Event {
 		event.Kind = KindCommonHeader
 		event.Common = common
 		event.Warnings = append(event.Warnings, warnings...)
+		event.Typed = parseTypedPayload(event.EventType, fields, common)
 		return event
 	}
 

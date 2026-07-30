@@ -499,7 +499,7 @@ Deliverables:
 
 ### 8.2 Phase 0 — Combat-log evidence spike (bounded PoC)
 
-**Status: Phase 0A.1 and Phase 0B.1 complete; Phase 0A.2 pending; Phase 0 is not complete**
+**Status: Phase 0A.1, Phase 0B.1, and limited Phase 0B.2 complete; Phase 0A.2 pending; Phase 0 is not complete**
 
 | Sub-phase | Scope | Maximum evidence status |
 | --------- | ----- | ----------------------- |
@@ -526,16 +526,28 @@ preservation, provisional signed-offset envelopes, and privacy-safe
 `cmd/logprobe`. Detection, typed damage payloads, tracked roster options, and
 death/run inference remain deferred.
 
+**Limited Phase 0B.2 (complete, 2026-07-30):** Added source-backed typed
+payload parsing for exact advanced-enabled `SPELL_DAMAGE`, `RANGE_DAMAGE`,
+`SWING_DAMAGE`, and `ENVIRONMENTAL_DAMAGE` layouts plus neutral
+`ENCOUNTER_START`, `ENCOUNTER_END`, and `CHALLENGE_MODE_END` metadata.
+Structural and primitive failures retain generic event recognition but provide
+no typed payload; bounded source-expectation diagnostics retain parsed
+payloads. `CHALLENGE_MODE_START` remains recognized but untyped because the
+selected reference does not define exact raw CSV serialization for its affix
+array. No death, run, identity, boss, or cause inference was added.
+
 **Limited Phase 0B may implement and test:**
 
 - CSV-aware tokenization;
 - version-header CSV payload parsing;
 - unsupported-version handling;
 - common-header extraction;
-- exact source-backed damage event payloads (`SPELL_DAMAGE`, `SWING_DAMAGE`,
-  `ENVIRONMENTAL_DAMAGE`);
+- exact source-backed damage event payloads (`SPELL_DAMAGE`, `RANGE_DAMAGE`,
+  `SWING_DAMAGE`, `ENVIRONMENTAL_DAMAGE`);
 - advanced-block extraction where the layout is exact in the selected V22
   reference;
+- neutral typed metadata payloads where raw CSV layout is exact
+  (`ENCOUNTER_START`, `ENCOUNTER_END`, `CHALLENGE_MODE_END`);
 - unknown and malformed input handling;
 - partial-line buffering.
 

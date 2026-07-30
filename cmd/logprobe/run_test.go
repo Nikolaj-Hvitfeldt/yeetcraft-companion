@@ -2,9 +2,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
 )
 
 func fixturePath(name string) string {
@@ -29,6 +34,9 @@ func TestRunFixtureExitCodes(t *testing.T) {
 		{"non-integer project", "version-project-id-non-integer.txt", exitUnsupported, "malformed_version_headers: 1"},
 		{"signed timestamp offset", "timestamp-signed-offset.txt", exitOK, "unknown_event_types: 1"},
 		{"malformed common header", "common-header-too-few-fields.txt", exitOK, "malformed_common_headers: 1"},
+		{"typed damage", "typed-damage-v22.txt", exitOK, "typed_payloads_parsed: 5"},
+		{"typed metadata", "typed-metadata-v22.txt", exitOK, "typed_challenge_mode_end_parsed: 2"},
+		{"typed invalid and diagnostics", "typed-payload-invalid-v22.txt", exitOK, "validation_diagnostics: 3"},
 	}
 
 	for _, tt := range tests {
@@ -50,6 +58,9 @@ func TestRunOutputIsPrivacySafe(t *testing.T) {
 		"parser-smoke-valid.txt",
 		"version-v22-then-malformed.txt",
 		"timestamp-signed-offset.txt",
+		"typed-damage-v22.txt",
+		"typed-metadata-v22.txt",
+		"typed-payload-invalid-v22.txt",
 	} {
 		t.Run(fixture, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
@@ -57,6 +68,7 @@ func TestRunOutputIsPrivacySafe(t *testing.T) {
 			if exit != exitOK && exit != exitUnsupported {
 				t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
 			}
+			output := stdout.String() + stderr.String()
 			for _, sensitive := range []string{
 				"Synthetic Encounter",
 				"Synthetic Source",
@@ -66,12 +78,37 @@ func TestRunOutputIsPrivacySafe(t *testing.T) {
 				"Player-Synthetic",
 				"SYNTHETIC_UNKNOWN_EVENT",
 				"COMBAT_LOG_VERSION",
+				"FUTURE_HINT",
+				"FutureHazard",
+				"Synthetic Spell",
+				"Synthetic Encounter",
 			} {
-				if strings.Contains(stdout.String(), sensitive) {
-					t.Fatalf("stdout exposed %q: %q", sensitive, stdout.String())
+				if strings.Contains(output, sensitive) {
+					t.Fatalf("output exposed %q: %q", sensitive, output)
 				}
 			}
 		})
+	}
+}
+
+func TestRunSeparatesTypedErrorsAndDiagnostics(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{"--file", fixturePath("typed-payload-invalid-v22.txt")}, &stdout, &stderr)
+	if exit != exitOK {
+		t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
+	}
+	for _, expected := range []string{
+		"typed_payloads_parsed: 2",
+		"typed_payloads_invalid: 1",
+		"typed_error_integer: 1",
+		"validation_diagnostics: 3",
+		"validation_advanced_info_guid_mismatch: 1",
+		"validation_ability_hint_unknown: 1",
+		"validation_environmental_type_unknown: 1",
+	} {
+		if !strings.Contains(stdout.String(), expected) {
+			t.Fatalf("stdout = %q, want %q", stdout.String(), expected)
+		}
 	}
 }
 
@@ -113,5 +150,68 @@ func TestRunHelpAndUsage(t *testing.T) {
 	stderr.Reset()
 	if exit := run(nil, &stdout, &stderr); exit != exitFailure {
 		t.Fatalf("missing file exit = %d", exit)
+	}
+}
+
+func TestRunOpenFailureDoesNotExposePath(t *testing.T) {
+	privatePath := `C:\Users\PrivatePerson\WoWCombatLog-PrivateCharacter.txt`
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--file", privatePath}, &stdout, &stderr); exit != exitFailure {
+		t.Fatalf("exit = %d", exit)
+	}
+	output := stdout.String() + stderr.String()
+	for _, sensitive := range []string{privatePath, "PrivatePerson", "PrivateCharacter"} {
+		if strings.Contains(output, sensitive) {
+			t.Fatalf("output exposed %q: %q", sensitive, output)
+		}
+	}
+	if !strings.Contains(stderr.String(), "unable to open requested file") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestWriteScanErrorDoesNotExposeWrappedPath(t *testing.T) {
+	privatePath := `C:\Users\PrivatePerson\WoWCombatLog-PrivateCharacter.txt`
+	wrapped := fmt.Errorf("read combat log: %w", &os.PathError{
+		Op:   "read",
+		Path: privatePath,
+		Err:  errors.New("fictional private failure"),
+	})
+	var stdout, stderr bytes.Buffer
+	writeScanError(&stderr, wrapped)
+
+	output := stdout.String() + stderr.String()
+	for _, sensitive := range []string{
+		privatePath,
+		"PrivatePerson",
+		"PrivateCharacter",
+		"fictional private failure",
+		wrapped.Error(),
+	} {
+		if strings.Contains(output, sensitive) {
+			t.Fatalf("output exposed %q: %q", sensitive, output)
+		}
+	}
+	if stderr.String() != "scan combat log: read or parse failure\n" {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestClassifyScanErrorUsesFixedCategories(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"oversized", fmt.Errorf("wrapped: %w", parser.ErrLineTooLong), "scan combat log: oversized line"},
+		{"handler", fmt.Errorf("wrapped: %w", parser.ErrEventHandler), "scan combat log: event handler failed"},
+		{"generic", errors.New("private raw error"), "scan combat log: read or parse failure"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := classifyScanError(tt.err); got != tt.want {
+				t.Fatalf("classifyScanError() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
