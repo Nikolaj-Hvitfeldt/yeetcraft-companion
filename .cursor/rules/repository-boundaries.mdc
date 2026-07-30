@@ -1,0 +1,27 @@
+---
+description: Protect repository boundaries in the Yeetcraft multi-repository workspace
+alwaysApply: true
+---
+
+# Repository boundaries
+
+- Treat this repository as the standalone Yeetcraft Companion repository.
+- In a multi-root workspace, `../Yeetcraft` or `../yeetcraft` is a separate
+  sibling repository.
+- The sibling Yeetcraft repository is read-only unless the current user request
+  explicitly grants permission to modify it.
+- Never modify both repositories merely because a feature may eventually
+  require coordinated changes.
+- If work in Yeetcraft is required but not authorized, describe the required
+  change and stop before modifying it.
+- Never create cross-repository Go imports.
+- Never depend at runtime on sibling source files, build output, local
+  configuration, or database files.
+- Integration between the products must use a versioned HTTP API.
+- Yeetcraft owns the website, backend, PostgreSQL database, authentication, and
+  canonical companion API contract.
+- This repository owns log watching, parsing, inference, local state, uploads,
+  review flows, packaging, and the desktop application.
+- Run Git commands in the repository they apply to.
+- Before making changes, inspect `git status` and preserve unrelated work.
+- Never commit or push unless the user explicitly requests it.

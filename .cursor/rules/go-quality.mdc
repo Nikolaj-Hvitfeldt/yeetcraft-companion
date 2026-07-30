@@ -1,0 +1,31 @@
+---
+description: Go implementation and testing standards
+globs:
+  - "**/*.go"
+alwaysApply: false
+---
+
+# Go quality
+
+- Prefer the Go standard library until a dependency provides clear value.
+- Do not add dependencies speculatively.
+- Keep packages focused around one responsibility.
+- Keep domain and parser logic independent of Wails and the UI.
+- Pass dependencies explicitly rather than relying on mutable package globals.
+- Accept `context.Context` in operations that perform I/O or may block.
+- Wrap errors with useful operation context while preserving the original error.
+- Do not log credentials, raw combat-log lines, or unnecessary personal data.
+- Treat combat-log content, configuration, SQLite data, and API responses as
+  untrusted input.
+- Unknown combat-log events must not crash ingestion.
+- Make replayed parsing and uploads deterministic where practical.
+- Design upload operations to become idempotent.
+- Use stable IDs where retries may occur.
+- Prefer table-driven tests for parsers and classifications.
+- Add malformed, truncated, unknown-event, and boundary cases.
+- Use small synthetic and anonymized fixtures.
+- Never commit complete user combat logs.
+- Run `gofmt` on changed Go files.
+- Run `go test ./...`.
+- Run `go vet ./...`.
+- Do not suppress a failing check without explaining the reason.

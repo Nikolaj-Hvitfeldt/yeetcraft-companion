@@ -1,0 +1,28 @@
+---
+description: Documentation accuracy and plan maintenance
+globs:
+  - "**/*.md"
+alwaysApply: false
+---
+
+# Documentation
+
+- Distinguish clearly between:
+  - current behavior;
+  - planned behavior;
+  - hypotheses;
+  - verified observations;
+  - unresolved decisions.
+- Do not describe planned endpoints, schemas, or combat-log capabilities as
+  implemented.
+- Preserve the multi-repository architecture.
+- Use relative links for repository documentation.
+- Keep headings hierarchical and tables readable in GitHub Markdown.
+- Update the implementation plan when a material architectural decision or
+  phase boundary changes.
+- Do not mark a phase complete without evidence that its acceptance criteria
+  have been met.
+- Keep addon work explicitly deferred until the companion MVP is functional.
+- Never include credentials, private combat logs, personal information, or
+  machine-specific absolute paths.
+- Prefer concise documentation over repeating the same rule in several files.
