@@ -70,4 +70,7 @@ agent-output/
 plans/drafts/
 *.local.md
 
+# Private local research data
+local-data/
+
 # Do not ignore intentional fixtures under testdata/
