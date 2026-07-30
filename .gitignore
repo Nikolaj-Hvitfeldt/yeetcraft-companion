@@ -63,7 +63,6 @@ frontend/dist/
 
 # Local workspace and AI-generated working files
 *.code-workspace
-.cursor/
 agent-output/
 plans/drafts/
 *.local.md
