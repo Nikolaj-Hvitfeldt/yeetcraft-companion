@@ -72,3 +72,91 @@ func TestTryParseEnvelopeTimestampIsOptional(t *testing.T) {
 		t.Fatalf("payload tokenization fields=%#v err=%v", fields, err)
 	}
 }
+
+func TestTryParseEnvelopeTimestampTimezoneOffsets(t *testing.T) {
+	tests := []struct {
+		name       string
+		raw        string
+		wantParsed bool
+	}{
+		{
+			name:       "no timezone suffix",
+			raw:        "1/15/2026 20:00:01.0000",
+			wantParsed: true,
+		},
+		{
+			name:       "zero offset with colon",
+			raw:        "1/15/2026 20:00:01.0000+00:00",
+			wantParsed: true,
+		},
+		{
+			name:       "positive offset with colon",
+			raw:        "1/15/2026 20:00:01.0000+02:00",
+			wantParsed: true,
+		},
+		{
+			name:       "negative offset without colon",
+			raw:        "1/15/2026 20:00:01.0000-0500",
+			wantParsed: true,
+		},
+		{
+			name:       "maximum positive offset with colon",
+			raw:        "1/15/2026 20:00:01.0000+23:59",
+			wantParsed: true,
+		},
+		{
+			name:       "maximum negative offset without colon",
+			raw:        "1/15/2026 20:00:01.0000-2359",
+			wantParsed: true,
+		},
+		{
+			name:       "hour-only positive offset",
+			raw:        "1/15/2026 20:00:01.0000+07",
+			wantParsed: true,
+		},
+		{
+			name:       "hour out of range",
+			raw:        "1/15/2026 20:00:01.0000+24:00",
+			wantParsed: false,
+		},
+		{
+			name:       "hour and minute out of range",
+			raw:        "1/15/2026 20:00:01.0000+24:99",
+			wantParsed: false,
+		},
+		{
+			name:       "minute out of range",
+			raw:        "1/15/2026 20:00:01.0000+12:60",
+			wantParsed: false,
+		},
+		{
+			name:       "incomplete offset missing minutes",
+			raw:        "1/15/2026 20:00:01.0000+02:",
+			wantParsed: false,
+		},
+		{
+			name:       "incomplete offset single minute digit",
+			raw:        "1/15/2026 20:00:01.0000+02:0",
+			wantParsed: false,
+		},
+		{
+			name:       "incomplete offset three digit body",
+			raw:        "1/15/2026 20:00:01.0000+024",
+			wantParsed: false,
+		},
+		{
+			name:       "incomplete offset sign only",
+			raw:        "1/15/2026 20:00:01.0000+",
+			wantParsed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, gotParsed := TryParseEnvelopeTimestamp(tt.raw)
+			if gotParsed != tt.wantParsed {
+				t.Fatalf("TryParseEnvelopeTimestamp(%q) parsed = %v, want %v", tt.raw, gotParsed, tt.wantParsed)
+			}
+		})
+	}
+}

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -57,6 +58,10 @@ func SplitEnvelope(rawLine string) EnvelopeSplit {
 }
 
 func TryParseEnvelopeTimestamp(raw string) (time.Time, bool) {
+	if suffix, ok := extractTimezoneSuffix(raw); ok && !isValidTimezoneOffset(suffix) {
+		return time.Time{}, false
+	}
+
 	layouts := []string{
 		"1/2/2006 15:04:05.999999999Z07:00",
 		"1/2/2006 15:04:05.999999999Z0700",
@@ -69,4 +74,78 @@ func TryParseEnvelopeTimestamp(raw string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// extractTimezoneSuffix returns a signed numeric offset suffix that follows
+// the fractional-second digits, if present.
+func extractTimezoneSuffix(raw string) (string, bool) {
+	dot := strings.LastIndex(raw, ".")
+	if dot < 0 || dot == len(raw)-1 {
+		return "", false
+	}
+	rest := raw[dot+1:]
+	i := 0
+	for i < len(rest) && rest[i] >= '0' && rest[i] <= '9' {
+		i++
+	}
+	if i >= len(rest) {
+		return "", false
+	}
+	suffix := rest[i:]
+	if suffix[0] != '+' && suffix[0] != '-' {
+		return "", false
+	}
+	return suffix, true
+}
+
+// isValidTimezoneOffset validates signed offset syntax independently of Go's
+// time.Parse behavior, which varies across Go versions for out-of-range values.
+func isValidTimezoneOffset(suffix string) bool {
+	if len(suffix) < 3 || (suffix[0] != '+' && suffix[0] != '-') {
+		return false
+	}
+
+	body := suffix[1:]
+	var hour, minute int
+	hasMinutes := false
+
+	switch {
+	case strings.Contains(body, ":"):
+		hourPart, minutePart, ok := strings.Cut(body, ":")
+		if !ok || len(hourPart) != 2 || len(minutePart) != 2 {
+			return false
+		}
+		var err error
+		if hour, err = strconv.Atoi(hourPart); err != nil {
+			return false
+		}
+		if minute, err = strconv.Atoi(minutePart); err != nil {
+			return false
+		}
+		hasMinutes = true
+	case len(body) == 4:
+		var err error
+		if hour, err = strconv.Atoi(body[:2]); err != nil {
+			return false
+		}
+		if minute, err = strconv.Atoi(body[2:]); err != nil {
+			return false
+		}
+		hasMinutes = true
+	case len(body) == 2:
+		var err error
+		if hour, err = strconv.Atoi(body); err != nil {
+			return false
+		}
+	default:
+		return false
+	}
+
+	if hour < 0 || hour > 23 {
+		return false
+	}
+	if hasMinutes && (minute < 0 || minute > 59) {
+		return false
+	}
+	return true
 }
