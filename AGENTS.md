@@ -98,11 +98,10 @@ docs/                      Plans and integration notes
 
 ## Phased work
 
-Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0 is not started.**
+Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0A.1 is complete.**
 
-- Do not implement **SQLite**, **Wails**, **upload**, or the **addon** until the corresponding phase task approves them.
-- Do not implement **parser** or **detection** by default.
-- A **bounded streaming parser and detection probe** are in scope when an explicitly approved **Phase 0** task requests them.
+- Phase 0B parser-foundation work is allowed only through an explicitly approved phase task.
+- **SQLite**, **Wails**, uploads, death inference, and addon work remain deferred until their corresponding phase tasks approve them.
 
 ## Definition of done
 

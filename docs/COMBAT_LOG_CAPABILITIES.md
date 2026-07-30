@@ -4,7 +4,7 @@ Phase 0 capability matrix and evidence log for the Yeetcraft companion.
 
 | | |
 | --- | --- |
-| **Phase** | 0A.1 complete — Phase 0A.2 real-log validation pending |
+| **Phase** | 0A.1 and 0B.1 complete — Phase 0A.2 real-log validation pending |
 | **Last updated** | 2026-07-30 |
 | **Fixtures** | Original synthetic corpus ([provenance](../testdata/logs/synthetic/README.md)) |
 
@@ -110,10 +110,22 @@ verified with a real log in this phase.
 | Capability | Desired outcome | Expected event / evidence source | Status | Confidence | Known limitations | Required fixture / scenario | Fallback behavior |
 | ---------- | --------------- | -------------------------------- | ------ | ---------- | ----------------- | --------------------------- | ----------------- |
 | Combat-log file rotation or truncation | Resume without duplicate or skipped events | File size shrink, new `WoWCombatLog-*.txt`, byte offset + file identity | Not investigated | — | Unverified assumption: retail may rotate on a new logging session | Rotation/truncation scenario | Unique client event IDs + offset persistence; re-read policy in Phase 2 |
-| Malformed CSV handling | Reject malformed input without crashing | Unterminated quoted field | Synthetic fixture prepared | none | No parser exists yet | [`malformed-csv.txt`](../testdata/logs/synthetic/malformed-csv.txt) | Count malformed line and continue |
-| Partial final-line handling | Buffer an incomplete final record | Truncated event prefix | Synthetic fixture prepared | none | File append behavior is not verified | [`truncated-line.txt`](../testdata/logs/synthetic/truncated-line.txt) | Retain partial bytes until append |
-| Unknown event handling | Preserve ingestion when a new event appears | Unknown event token | Synthetic fixture prepared | none | No parser exists yet | [`unknown-event.txt`](../testdata/logs/synthetic/unknown-event.txt) | Count unknown event and continue |
-| Unsupported version handling | Fail safely on an unsupported format | `COMBAT_LOG_VERSION` with fictional version | Synthetic fixture prepared | none | Header line envelope is unresolved | [`unsupported-version.txt`](../testdata/logs/synthetic/unsupported-version.txt) | Reject or quarantine without parsing as V22 |
+| Malformed CSV handling | Reject malformed input without crashing | Unterminated quoted field | Synthetically tested | high | Technical behavior only; real-log malformed-input frequency is unknown | [`malformed-csv.txt`](../testdata/logs/synthetic/malformed-csv.txt) | Count malformed line and continue |
+| Partial final-line handling | Buffer an incomplete final record | Truncated event prefix | Synthetically tested | high | WoW append behavior is not verified | [`truncated-line.txt`](../testdata/logs/synthetic/truncated-line.txt) | Retain partial bytes until append |
+| Unknown event handling | Preserve ingestion when a new event appears | Unknown event token | Synthetically tested | high | Unknown semantics remain uninterpreted | [`unknown-event.txt`](../testdata/logs/synthetic/unknown-event.txt) | Count unknown event and continue |
+| Unsupported version handling | Fail safely on unsupported or malformed format boundaries | `COMBAT_LOG_VERSION` with fictional version, malformed structure, or non-retail project | Synthetically tested | high | Header envelope and real version transitions remain unresolved | [`unsupported-version.txt`](../testdata/logs/synthetic/unsupported-version.txt), [`version-v22-then-unsupported.txt`](../testdata/logs/synthetic/version-v22-then-unsupported.txt), [`version-v22-then-malformed.txt`](../testdata/logs/synthetic/version-v22-then-malformed.txt), [`version-project-id-2.txt`](../testdata/logs/synthetic/version-project-id-2.txt) | Quarantine; do not continue V22 interpretation |
+
+### Parser foundation (Phase 0B.1)
+
+| Technical capability | Status | Evidence | Boundary |
+| -------------------- | ------ | -------- | -------- |
+| CSV-aware tokenization | Synthetically tested | [`csv-quoted-fields.txt`](../testdata/logs/synthetic/csv-quoted-fields.txt) and parser tests | No event semantics inferred |
+| Common-header extraction | Synthetically tested | [`common-header-invalid-flags.txt`](../testdata/logs/synthetic/common-header-invalid-flags.txt), [`parser-smoke-valid.txt`](../testdata/logs/synthetic/parser-smoke-valid.txt) | Explicit documented event allowlist only |
+| Bounded incremental line reading | Synthetically tested | `internal/parser/line_reader_test.go` | No filesystem watching, rotation, or offsets |
+| Version-boundary quarantine | Synthetically tested | [`version-v22-then-unsupported.txt`](../testdata/logs/synthetic/version-v22-then-unsupported.txt), [`version-v22-then-malformed.txt`](../testdata/logs/synthetic/version-v22-then-malformed.txt) | Unsupported, malformed, and non-retail boundaries fail closed; later V22 does not recover |
+| Retail project validation | Synthetically tested | [`version-project-id-2.txt`](../testdata/logs/synthetic/version-project-id-2.txt), [`version-project-id-non-integer.txt`](../testdata/logs/synthetic/version-project-id-non-integer.txt) | Only documented retail `PROJECT_ID,1` activates V22 |
+| Provisional signed-offset envelope | Synthetically tested | [`timestamp-signed-offset.txt`](../testdata/logs/synthetic/timestamp-signed-offset.txt) | Shape matching only; not verified against a real 12.0+ log |
+| Malformed category reporting | Synthetically tested | CLI tests for CSV, version-header, and common-header counts | Diagnostics expose counts only, never record contents |
 
 ### Documented format references
 
@@ -124,10 +136,11 @@ success test in Phase 0A.1.
 
 ---
 
-## Status summary (Phase 0A.1)
+## Status summary (Phase 0B.1)
 
-- **Synthetic fixture prepared** is the highest status assigned.
-- No parser exists, so nothing is **Synthetically tested**.
+- Parser-foundation technical capabilities listed above are **Synthetically tested**.
+- Shape-incomplete death scenarios remain no higher than **Documented** or
+  **Synthetic fixture prepared**; no death capability was promoted.
 - No real Mythic+ log was examined, so nothing is **Partially verified** or
   **Verified with real log**.
 - Exact counts should be generated when the matrix is next revised rather than
@@ -171,6 +184,7 @@ When recording observations (Phase 0 onward):
 | Date | Build | ACL enabled | Scenario # | Fixture | Observation summary | Matrix rows updated |
 | ---- | ----- | ----------- | ---------- | ------- | ------------------- | ------------------- |
 | 2026-07-30 | V22 docs target 12.0+ | Not applicable | Synthetic preparation | [`synthetic/`](../testdata/logs/synthetic/README.md) | Original fixtures prepared; timestamp envelope and `UNIT_DIED` suffix unresolved; no parser or real-log validation | Format-related rows only |
+| 2026-07-30 | V22 docs target 12.0+ | Not applicable | Phase 0B.1 technical tests | [`synthetic/`](../testdata/logs/synthetic/README.md) | Bounded streaming, CSV, common-header, unknown, malformed, partial-tail, and version-quarantine tests pass; no death inference | File mechanics and parser foundation only |
 
 ---
 

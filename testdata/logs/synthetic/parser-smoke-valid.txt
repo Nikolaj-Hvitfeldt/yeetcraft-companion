@@ -1,0 +1,4 @@
+COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1
+1/15/2026 20:10:00.0000 ENCOUNTER_START,990010,"Synthetic Encounter",8,5,9999
+1/15/2026 20:10:01.0000 SPELL_DAMAGE,Creature-Synthetic-0001,"Synthetic Source",0xa48,0x0,Player-Synthetic-0001,"Synthetic Target",0x512,0x0,extra
+1/15/2026 20:10:02.0000 SYNTHETIC_UNKNOWN_EVENT,source,"Unknown Source",0xa48,0x0,destination,"Unknown Target",0x512,0x0,extra

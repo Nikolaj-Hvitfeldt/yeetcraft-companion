@@ -18,16 +18,17 @@ selected V22 specification does not enumerate the `UNIT_DIED` suffix. Therefore:
 
 - `version-header.txt` preserves the exact documented header CSV payload but is
   not asserted to be a complete raw log line;
-- timestamped scenario fixtures use the observed V22 timestamp shape
+- timestamped death-scenario fixtures use the observed V22 timestamp shape
   provisionally and are labeled `shape-incomplete`;
 - all fixtures containing `UNIT_DIED` are `shape-incomplete`;
-- no file in this directory is yet suitable as a complete parser success test.
+- focused technical fixtures may be parser success tests without verifying the
+  timestamp envelope or event semantics.
 
-Phase 0B may promote individual fixtures only after an implementation passes
-exact source-backed fixtures. Shape-incomplete death scenarios must not become
-passing success fixtures. Limited Phase 0B may proceed before Phase 0A.2 for
-technical parser behavior; Phase 0A.2 later validates and adjusts those
-assumptions.
+Phase 0B.1 passes the technical fixtures listed below for bounded line reading,
+CSV tokenization, common-header extraction, unknown input, and version
+quarantine. Shape-incomplete death scenarios remain unsuitable as death-
+detection success fixtures. Phase 0A.2 must validate and adjust the provisional
+envelope behavior.
 
 ## Fictional roster
 
@@ -43,17 +44,28 @@ be uploaded.
 
 | Fixture | Classification | Exact layout source | Purpose |
 | ------- | -------------- | ------------------- | ------- |
-| `version-header.txt` | Header payload complete; line envelope unresolved | WowCoach `spec.yaml` `version_header` | V22 and advanced-logging marker |
+| `version-header.txt` | Synthetically tested header payload; line envelope unresolved | WowCoach `spec.yaml` `version_header` | V22 and advanced-logging marker |
 | `spell-damage-death.txt` | `shape-incomplete` | `SPELL_DAMAGE`: WowCoach `spec.yaml` offsets 0–41; `UNIT_DIED`: unresolved suffix; timestamp: conflicting sources | Tracked spell damage followed by death |
 | `swing-damage-death.txt` | `shape-incomplete` | `SWING_DAMAGE`: WowCoach `spec.yaml` offsets 0–37; `UNIT_DIED`: unresolved suffix; timestamp: conflicting sources | Tracked swing damage followed by death |
 | `environmental-death.txt` | `shape-incomplete` | `ENVIRONMENTAL_DAMAGE`: WowCoach `spec.yaml` offsets 0–38; `UNIT_DIED`: unresolved suffix; timestamp: conflicting sources | Environmental damage followed by death |
 | `boss-context-death.txt` | `shape-incomplete` | `ENCOUNTER_*` and `SPELL_DAMAGE`: WowCoach `spec.yaml`; `UNIT_DIED` and timestamp unresolved | Boss-context death ordering |
 | `untracked-party-death.txt` | `shape-incomplete` | `UNIT_DIED` suffix and timestamp unresolved | Untracked party member death |
 | `untracked-party-damage.txt` | `shape-incomplete` | `SPELL_DAMAGE`: WowCoach `spec.yaml`; timestamp conflicting | Damage from untracked party member |
-| `unknown-event.txt` | Intentional unknown input | Common header shape only; unknown suffix is deliberately undefined | Unknown-event resilience |
-| `malformed-csv.txt` | Intentional invalid input | Not applicable | Unterminated quoted field |
-| `truncated-line.txt` | Intentional partial input | Prefix of source-backed `SPELL_DAMAGE`; intentionally cut | Partial final-line buffering |
-| `unsupported-version.txt` | Intentional unsupported input | Header key/value structure from WowCoach `spec.yaml`; fictional version `99` | Unsupported version handling |
+| `unknown-event.txt` | Synthetically tested intentional unknown input | Common header shape only; unknown suffix is deliberately undefined | Unknown-event resilience without recognition |
+| `malformed-csv.txt` | Synthetically tested intentional invalid input | Not applicable | Unterminated quoted field |
+| `truncated-line.txt` | Synthetically tested intentional partial input | Prefix of source-backed `SPELL_DAMAGE`; intentionally cut with no final newline | Partial final-line buffering |
+| `unsupported-version.txt` | Synthetically tested unsupported input | Header key/value structure from WowCoach `spec.yaml`; fictional version `99` | Unsupported version handling |
+| `parser-smoke-valid.txt` | Synthetically tested technical parser fixture | V22 header, documented metadata/common-header offsets, intentional unknown event | End-to-end CLI summary without death semantics |
+| `csv-quoted-fields.txt` | Synthetically tested technical parser fixture | Standard CSV quoting rules | Quoted comma, literal `nil`, trailing fields |
+| `common-header-invalid-flags.txt` | Synthetically tested malformed flags | V22 common-header offsets | Controlled hexadecimal flag warnings |
+| `common-header-too-few-fields.txt` | Synthetically tested truncated common header | V22 common-header offsets | Controlled structural error |
+| `version-malformed-kv.txt` | Synthetically tested malformed header | V22 key/value structure intentionally truncated | Controlled header-structure error |
+| `version-repeated-boundary.txt` | Synthetically tested repeated header | V22 version-header structure | Supported state boundary |
+| `version-v22-then-unsupported.txt` | Synthetically tested quarantine sequence | V22/V99 synthetic headers and generic post-boundary rows | Fail-closed quarantine; no recovery on later V22 |
+| `version-v22-then-malformed.txt` | Synthetically tested malformed-boundary sequence | V22 header shape with invalid advanced marker | Malformed header quarantines; no recovery on later V22 |
+| `version-project-id-2.txt` | Synthetically tested unsupported project | V22 header with fictional non-retail project selection | Retail-only project validation |
+| `version-project-id-non-integer.txt` | Synthetically tested malformed project ID | V22 header with non-integer project value | Malformed header quarantine |
+| `timestamp-signed-offset.txt` | Synthetically tested provisional reference envelope | Reference timestamp shape with signed offset and two-space separator | Raw-envelope preservation; not real-log verification |
 
 Primary source URLs:
 

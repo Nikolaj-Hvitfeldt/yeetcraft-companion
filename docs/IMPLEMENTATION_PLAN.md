@@ -3,7 +3,7 @@
 | Field | Value |
 | ----- | ----- |
 | **Status** | Planning |
-| **Current milestone** | Phase 0A.1 complete / Phase 0A.2 pending |
+| **Current milestone** | Phase 0A.1 and Phase 0B.1 complete / Phase 0A.2 pending |
 | **Canonical repository** | [yeetcraft-companion](https://github.com/Nikolaj-Hvitfeldt/yeetcraft-companion) |
 | **Related repository** | [yeetcraft](https://github.com/Nikolaj-Hvitfeldt/Yeetcraft) (website, backend, PostgreSQL, API, canonical companion contract) |
 | **Last updated** | 2026-07-30 |
@@ -499,7 +499,7 @@ Deliverables:
 
 ### 8.2 Phase 0 — Combat-log evidence spike (bounded PoC)
 
-**Status: Phase 0A.1 complete; Phase 0A.2 pending; Phase 0 is not complete**
+**Status: Phase 0A.1 and Phase 0B.1 complete; Phase 0A.2 pending; Phase 0 is not complete**
 
 | Sub-phase | Scope | Maximum evidence status |
 | --------- | ----- | ----------------------- |
@@ -517,6 +517,14 @@ Phase 0B is splittable. Because a real Mythic+ log is not currently available,
 a **limited Phase 0B** may follow Phase 0A.1 without waiting for Phase 0A.2.
 Phase 0A.2 later validates and adjusts Phase 0B; it does not block all Phase 0B
 work.
+
+**Phase 0B.1 (complete, 2026-07-30):** Implemented the bounded streaming
+line reader, provisional envelope separation, CSV-aware tokenization, V22
+header and fail-closed quarantine state (including malformed boundaries and
+non-retail projects), explicit common-header event recognition, unknown event
+preservation, provisional signed-offset envelopes, and privacy-safe
+`cmd/logprobe`. Detection, typed damage payloads, tracked roster options, and
+death/run inference remain deferred.
 
 **Limited Phase 0B may implement and test:**
 
