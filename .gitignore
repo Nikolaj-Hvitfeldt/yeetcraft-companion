@@ -61,6 +61,9 @@ Desktop.ini
 frontend/node_modules/
 frontend/dist/
 
+# Source documents (keep docs/source/; ignore local DOCX copies)
+docs/source/*.docx
+
 # Local workspace and AI-generated working files
 *.code-workspace
 agent-output/

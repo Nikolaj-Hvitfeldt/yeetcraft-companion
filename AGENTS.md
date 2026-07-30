@@ -78,7 +78,8 @@ Combat logs contain player names and other identifiable information.
 cmd/yeetcraft-companion/   CLI entrypoint (desktop shell may come later)
 internal/config/           Environment and paths
 internal/logwatcher/       Combat-log directory watching
-internal/parser/           WoW combat-log line parsing
+internal/parser/           WoW combat-log line parsing (placeholder until Phase 0+)
+internal/detection/        Death-candidate detection, recent-damage tracking, later classification support (planned; not implemented)
 internal/session/          Active M+ session state
 internal/storage/          Local persistence (SQLite planned)
 internal/uploader/         Yeetcraft HTTP client
@@ -97,7 +98,11 @@ docs/                      Plans and integration notes
 
 ## Phased work
 
-Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0 is not started.** Do not implement parser, SQLite, Wails, or upload until the corresponding phase task says so.
+Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0 is not started.**
+
+- Do not implement **SQLite**, **Wails**, **upload**, or the **addon** until the corresponding phase task approves them.
+- Do not implement **parser** or **detection** by default.
+- A **bounded streaming parser and detection probe** are in scope when an explicitly approved **Phase 0** task requests them.
 
 ## Definition of done
 
