@@ -92,12 +92,12 @@ The selected reference gives this exact CSV payload:
 COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1
 ```
 
-| Position | Key/value | Meaning |
-| -------- | --------- | ------- |
-| 0–1 | `COMBAT_LOG_VERSION,22` | Format version |
-| 2–3 | `ADVANCED_LOG_ENABLED,1` | Advanced logging configured on |
-| 4–5 | `BUILD_VERSION,12.0.0` | Game patch/build label |
-| 6–7 | `PROJECT_ID,1` | Retail project |
+| Position | Key/value                | Meaning                        |
+| -------- | ------------------------ | ------------------------------ |
+| 0–1      | `COMBAT_LOG_VERSION,22`  | Format version                 |
+| 2–3      | `ADVANCED_LOG_ENABLED,1` | Advanced logging configured on |
+| 4–5      | `BUILD_VERSION,12.0.0`   | Game patch/build label         |
+| 6–7      | `PROJECT_ID,1`           | Retail project                 |
 
 The specification says this header may appear mid-log after the logger restarts
 and should be treated as a hard state boundary. It also warns that the advanced
@@ -113,17 +113,17 @@ the exact documented payload but is not asserted to be a complete raw log line.
 
 Source/target events use these exact zero-based CSV offsets:
 
-| Offset | Field | Type |
-| ------ | ----- | ---- |
-| 0 | `event` | string |
-| 1 | `source_guid` | string |
-| 2 | `source_name` | quoted string |
-| 3 | `source_flags` | hexadecimal uint32 |
-| 4 | `source_raid_flags` | hexadecimal uint32 |
-| 5 | `dest_guid` | string |
-| 6 | `dest_name` | quoted string |
-| 7 | `dest_flags` | hexadecimal uint32 |
-| 8 | `dest_raid_flags` | hexadecimal uint32 |
+| Offset | Field               | Type               |
+| ------ | ------------------- | ------------------ |
+| 0      | `event`             | string             |
+| 1      | `source_guid`       | string             |
+| 2      | `source_name`       | quoted string      |
+| 3      | `source_flags`      | hexadecimal uint32 |
+| 4      | `source_raid_flags` | hexadecimal uint32 |
+| 5      | `dest_guid`         | string             |
+| 6      | `dest_name`         | quoted string      |
+| 7      | `dest_flags`        | hexadecimal uint32 |
+| 8      | `dest_raid_flags`   | hexadecimal uint32 |
 
 Spell and range events then use `spell_id`, `spell_name`, and `spell_school` at
 offsets 9–11. Swing events do not have this prefix.
@@ -132,27 +132,27 @@ offsets 9–11. Swing events do not have this prefix.
 
 The selected V22 specification defines a 19-field block:
 
-| Relative offset | Field |
-| --------------- | ----- |
-| 0 | `info_guid` |
-| 1 | `owner_guid` |
-| 2 | `current_hp` |
-| 3 | `max_hp` |
-| 4 | `attack_power` |
-| 5 | `spell_power` |
-| 6 | `armor` |
-| 7 | `absorb` |
-| 8 | `unknown_1` |
-| 9 | `unknown_2` |
-| 10 | `power_type` |
-| 11 | `current_power` |
-| 12 | `max_power` |
-| 13 | `power_cost` |
-| 14 | `position_x` |
-| 15 | `position_y` |
-| 16 | `ui_map_id` |
-| 17 | `facing` |
-| 18 | `item_level` |
+| Relative offset | Field           |
+| --------------- | --------------- |
+| 0               | `info_guid`     |
+| 1               | `owner_guid`    |
+| 2               | `current_hp`    |
+| 3               | `max_hp`        |
+| 4               | `attack_power`  |
+| 5               | `spell_power`   |
+| 6               | `armor`         |
+| 7               | `absorb`        |
+| 8               | `unknown_1`     |
+| 9               | `unknown_2`     |
+| 10              | `power_type`    |
+| 11              | `current_power` |
+| 12              | `max_power`     |
+| 13              | `power_cost`    |
+| 14              | `position_x`    |
+| 15              | `position_y`    |
+| 16              | `ui_map_id`     |
+| 17              | `facing`        |
+| 18              | `item_level`    |
 
 The block occupies offsets 12–30 for spell/range events and 9–27 for swing and
 environmental damage. `SPELL_DAMAGE` and `ENVIRONMENTAL_DAMAGE` describe the
@@ -174,61 +174,61 @@ V22 `spec.yaml`.
 
 `RANGE_DAMAGE` inherits `SPELL_DAMAGE`.
 
-| Offsets | Content |
-| ------- | ------- |
-| 0–8 | Common header |
-| 9–11 | Spell prefix |
-| 12–30 | Advanced block describing target |
-| 31 | `base_amount` |
-| 32 | `raw_amount` |
-| 33 | `overkill` (`-1` means nonlethal) |
-| 34 | `school` |
-| 35 | `resisted` |
-| 36 | `blocked` |
-| 37 | `absorbed` |
-| 38 | `critical` |
-| 39 | `glancing` |
-| 40 | `crushing` |
-| 41 | `ability_hint` (`ST` or `AOE`) |
+| Offsets | Content                           |
+| ------- | --------------------------------- |
+| 0–8     | Common header                     |
+| 9–11    | Spell prefix                      |
+| 12–30   | Advanced block describing target  |
+| 31      | `base_amount`                     |
+| 32      | `raw_amount`                      |
+| 33      | `overkill` (`-1` means nonlethal) |
+| 34      | `school`                          |
+| 35      | `resisted`                        |
+| 36      | `blocked`                         |
+| 37      | `absorbed`                        |
+| 38      | `critical`                        |
+| 39      | `glancing`                        |
+| 40      | `crushing`                        |
+| 41      | `ability_hint` (`ST` or `AOE`)    |
 
 ### `SWING_DAMAGE`
 
-| Offsets | Content |
-| ------- | ------- |
-| 0–8 | Common header |
-| 9–27 | Advanced block describing source |
-| 28 | `base_amount` |
-| 29 | `raw_amount` |
-| 30 | `overkill` |
-| 31 | `school` (physical `0x1`) |
-| 32 | `resisted` |
-| 33 | `blocked` |
-| 34 | `absorbed` |
-| 35 | `critical` |
-| 36 | `glancing` |
-| 37 | `crushing` |
-| 38 | optional `is_off_hand` |
+| Offsets | Content                          |
+| ------- | -------------------------------- |
+| 0–8     | Common header                    |
+| 9–27    | Advanced block describing source |
+| 28      | `base_amount`                    |
+| 29      | `raw_amount`                     |
+| 30      | `overkill`                       |
+| 31      | `school` (physical `0x1`)        |
+| 32      | `resisted`                       |
+| 33      | `blocked`                        |
+| 34      | `absorbed`                       |
+| 35      | `critical`                       |
+| 36      | `glancing`                       |
+| 37      | `crushing`                       |
+| 38      | optional `is_off_hand`           |
 
 ### `ENVIRONMENTAL_DAMAGE`
 
 The selected specification says the source GUID is
 `0000000000000000`.
 
-| Offsets | Content |
-| ------- | ------- |
-| 0–8 | Common header |
-| 9–27 | Advanced block describing target |
-| 28 | `environmental_type` |
-| 29 | `base_amount` |
-| 30 | `raw_amount` |
-| 31 | `overkill` |
-| 32 | `school` |
-| 33 | `resisted` |
-| 34 | `blocked` |
-| 35 | `absorbed` |
-| 36 | `critical` |
-| 37 | `glancing` |
-| 38 | `crushing` |
+| Offsets | Content                          |
+| ------- | -------------------------------- |
+| 0–8     | Common header                    |
+| 9–27    | Advanced block describing target |
+| 28      | `environmental_type`             |
+| 29      | `base_amount`                    |
+| 30      | `raw_amount`                     |
+| 31      | `overkill`                       |
+| 32      | `school`                         |
+| 33      | `resisted`                       |
+| 34      | `blocked`                        |
+| 35      | `absorbed`                       |
+| 36      | `critical`                       |
+| 37      | `glancing`                       |
+| 38      | `crushing`                       |
 
 Documented environmental types are `Falling`, `Lava`, `Fire`, `Slime`,
 `Drowning`, and `Fatigue`.
@@ -258,39 +258,39 @@ No `SPELL_INSTAKILL` success fixture is created.
 
 This metadata event has no common source/target header.
 
-| Offset | Field |
-| ------ | ----- |
-| 0 | `ENCOUNTER_START` |
-| 1 | `encounter_id` |
-| 2 | `encounter_name` |
-| 3 | `difficulty_id` |
-| 4 | `group_size` |
-| 5 | optional `instance_id` |
+| Offset | Field                  |
+| ------ | ---------------------- |
+| 0      | `ENCOUNTER_START`      |
+| 1      | `encounter_id`         |
+| 2      | `encounter_name`       |
+| 3      | `difficulty_id`        |
+| 4      | `group_size`           |
+| 5      | optional `instance_id` |
 
 Difficulty ID `8` is documented as Mythic+.
 
 ### `ENCOUNTER_END`
 
-| Offset | Field |
-| ------ | ----- |
-| 0 | `ENCOUNTER_END` |
-| 1 | `encounter_id` |
-| 2 | `encounter_name` |
-| 3 | `difficulty_id` |
-| 4 | `group_size` |
-| 5 | `success` |
-| 6 | optional `duration_ms` |
+| Offset | Field                  |
+| ------ | ---------------------- |
+| 0      | `ENCOUNTER_END`        |
+| 1      | `encounter_id`         |
+| 2      | `encounter_name`       |
+| 3      | `difficulty_id`        |
+| 4      | `group_size`           |
+| 5      | `success`              |
+| 6      | optional `duration_ms` |
 
 ### `CHALLENGE_MODE_START`
 
-| Offset | Field |
-| ------ | ----- |
-| 0 | `CHALLENGE_MODE_START` |
-| 1 | `dungeon_name` |
-| 2 | `map_id` |
-| 3 | `challenge_mode_id` |
-| 4 | `keystone_level` |
-| 5 | `affixes` integer array |
+| Offset | Field                   |
+| ------ | ----------------------- |
+| 0      | `CHALLENGE_MODE_START`  |
+| 1      | `dungeon_name`          |
+| 2      | `map_id`                |
+| 3      | `challenge_mode_id`     |
+| 4      | `keystone_level`        |
+| 5      | `affixes` integer array |
 
 The selected reference does not define how the comma-containing integer array
 is quoted or escaped in the raw CSV. `CHALLENGE_MODE_START` therefore remains
@@ -298,15 +298,15 @@ recognized metadata with no Phase 0B.2 typed parser.
 
 ### `CHALLENGE_MODE_END`
 
-| Offset | Field |
-| ------ | ----- |
-| 0 | `CHALLENGE_MODE_END` |
-| 1 | `map_id` |
-| 2 | `success` |
-| 3 | `keystone_level` |
-| 4 | optional `total_time_ms` |
-| 5 | optional `on_time_seconds` (float) |
-| 6 | optional `timer_limit_seconds` (float) |
+| Offset | Field                                  |
+| ------ | -------------------------------------- |
+| 0      | `CHALLENGE_MODE_END`                   |
+| 1      | `map_id`                               |
+| 2      | `success`                              |
+| 3      | `keystone_level`                       |
+| 4      | optional `total_time_ms`               |
+| 5      | optional `on_time_seconds` (float)     |
+| 6      | optional `timer_limit_seconds` (float) |
 
 Retail 12.1.0 logs observed in Phase 0A.2 emit floating-point tokens such as
 `170.000000` for both optional timer fields.
@@ -361,15 +361,15 @@ limited parser work.
 
 All sources were accessed 2026-07-30.
 
-| Source title | URL | Documented format/game version | Use |
-| ------------ | --- | ------------------------------ | --- |
-| WoW Combat Log Reference | <https://wowcoach.gg/docs/combat-log> | V22; retail patch 12.0+ | Current overview |
-| WoW Combat Log Format Specification | <https://wowcoach.gg/docs/combat-log/spec.yaml> | V22; verified against 12.0+; updated 2026-05-08 | Selected canonical project field reference |
-| Line Format & Common Header | <https://wowcoach.gg/docs/combat-log/line-format> | V22; source also claims 11.x and 12.0+ | Envelope, header, common fields |
-| Advanced Combat Logging | <https://wowcoach.gg/docs/combat-log/advanced-logging> | Current V22 reference | Advanced block |
-| Metadata & Other Event Suffixes | <https://wowcoach.gg/docs/combat-log/metadata-events> | Current V22 reference | Encounter and challenge fields |
-| COMBAT_LOG_EVENT | <https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT> | Multi-version API/file reference; examples are legacy | Secondary `UNIT_DIED` and header cross-check |
-| Support Combatlog Version 22 | <https://github.com/Toreole/BasicCombatlogParser/issues/35> | Observed V22 line from 2025 | Timestamp and advanced-block conflict |
+| Source title                        | URL                                                         | Documented format/game version                        | Use                                          |
+| ----------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------- | -------------------------------------------- |
+| WoW Combat Log Reference            | <https://wowcoach.gg/docs/combat-log>                       | V22; retail patch 12.0+                               | Current overview                             |
+| WoW Combat Log Format Specification | <https://wowcoach.gg/docs/combat-log/spec.yaml>             | V22; verified against 12.0+; updated 2026-05-08       | Selected canonical project field reference   |
+| Line Format & Common Header         | <https://wowcoach.gg/docs/combat-log/line-format>           | V22; source also claims 11.x and 12.0+                | Envelope, header, common fields              |
+| Advanced Combat Logging             | <https://wowcoach.gg/docs/combat-log/advanced-logging>      | Current V22 reference                                 | Advanced block                               |
+| Metadata & Other Event Suffixes     | <https://wowcoach.gg/docs/combat-log/metadata-events>       | Current V22 reference                                 | Encounter and challenge fields               |
+| COMBAT_LOG_EVENT                    | <https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT>            | Multi-version API/file reference; examples are legacy | Secondary `UNIT_DIED` and header cross-check |
+| Support Combatlog Version 22        | <https://github.com/Toreole/BasicCombatlogParser/issues/35> | Observed V22 line from 2025                           | Timestamp and advanced-block conflict        |
 
 ## Related documentation
 
