@@ -3,7 +3,7 @@
 | Field | Value |
 | ----- | ----- |
 | **Status** | Planning |
-| **Current milestone** | Phase 0A.1 and Phase 0B.1 complete / Phase 0A.2 pending |
+| **Current milestone** | Phase 0 in progress — detection prototype complete; Phase 0A.2 partial |
 | **Canonical repository** | [yeetcraft-companion](https://github.com/Nikolaj-Hvitfeldt/yeetcraft-companion) |
 | **Related repository** | [yeetcraft](https://github.com/Nikolaj-Hvitfeldt/Yeetcraft) (website, backend, PostgreSQL, API, canonical companion contract) |
 | **Last updated** | 2026-07-30 |
@@ -499,7 +499,7 @@ Deliverables:
 
 ### 8.2 Phase 0 — Combat-log evidence spike (bounded PoC)
 
-**Status: Phase 0A.1, Phase 0B.1, and limited Phase 0B.2 complete; Phase 0A.2 pending; Phase 0 is not complete**
+**Status: Phase 0A.1, Phase 0B.1, limited Phase 0B.2, and Phase 0 detection prototype complete; Phase 0A.2 partially complete; Phase 0 is not complete**
 
 | Sub-phase | Scope | Maximum evidence status |
 | --------- | ----- | ----------------------- |
@@ -535,6 +535,14 @@ no typed payload; bounded source-expectation diagnostics retain parsed
 payloads. `CHALLENGE_MODE_START` remains recognized but untyped because the
 selected reference does not define exact raw CSV serialization for its affix
 array. No death, run, identity, boss, or cause inference was added.
+
+**Phase 0A.2 parser adjustments and detection prototype (complete, 2026-08-19):**
+Retail log validation adjusted typed parsing for decimal damage-school suffix
+tokens, float `CHALLENGE_MODE_END` timer fields, and `SPELL_PERIODIC_DAMAGE`
+layout parity with `SPELL_DAMAGE`. Added `internal/detection` for in-memory
+Mythic+ run context, boss encounter windows, recent incoming-damage buffers,
+ranked cause candidates, and player death candidates. Extended `cmd/logprobe`
+with privacy-safe `--deaths` and repeatable `--track-guid` filters.
 
 **Limited Phase 0B may implement and test:**
 
@@ -572,9 +580,9 @@ approximate field counts.
 
 Deliverables:
 
-- [ ] CLI probe (e.g. `cmd/logprobe`) accepting a combat-log path and optional tracked names/GUIDs
+- [x] CLI probe (e.g. `cmd/logprobe`) accepting a combat-log path and optional tracked GUID filters
 - [x] Streaming parser reporting recognized, unknown, and malformed event counts
-- [ ] Recent-damage buffers and death candidate output in `internal/detection/`
+- [x] Recent-damage buffers and death candidate output in `internal/detection/`
 - [x] Anonymized fixture slices under [testdata/logs/](../testdata/logs/)
 - [x] Capability matrix in [docs/COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
 - [ ] Test report: per-run expected vs detected deaths and likely-cause accuracy

@@ -4,8 +4,8 @@ Phase 0 capability matrix and evidence log for the Yeetcraft companion.
 
 | | |
 | --- | --- |
-| **Phase** | 0A.1, 0B.1, and limited 0B.2 complete — Phase 0A.2 real-log validation pending |
-| **Last updated** | 2026-07-30 |
+| **Phase** | 0A.2 partially complete — detection prototype added |
+| **Last updated** | 2026-08-19 |
 | **Fixtures** | Original synthetic corpus ([provenance](../testdata/logs/synthetic/README.md)) |
 
 Yeetcraft tracks **deaths** and **yeets** per player per dungeon per season. The companion must derive that information from local combat-log files written by the WoW client on **one** logging PC. This document records what the log can support — not what the product wishes were true.
@@ -148,18 +148,21 @@ success test in Phase 0A.1.
 
 ---
 
-## Status summary (limited Phase 0B.2)
+## Status summary (Phase 0 detection prototype)
 
-- Parser-foundation and selected typed-parsing technical capabilities listed
-  above are **Synthetically tested**.
-- Shape-incomplete death scenarios remain no higher than **Documented** or
-  **Synthetic fixture prepared**; no death capability was promoted.
-- No run detection, identity mapping, boss attribution, cause ranking, or
-  yeet classification capability was promoted.
-- No real Mythic+ log was examined, so nothing is **Partially verified** or
-  **Verified with real log**.
-- Exact counts should be generated when the matrix is next revised rather than
-  maintained manually.
+- Parser-foundation and selected typed-parsing technical capabilities remain
+  **Synthetically tested**, with Phase 0A.2 retail adjustments for decimal
+  damage-school tokens and float `CHALLENGE_MODE_END` timer fields.
+- **`internal/detection`** provides in-memory run/encounter context, recent
+  incoming-damage buffers, ranked cause candidates, and death-candidate output.
+  Exercised synthetically and against a local retail log via `logprobe --deaths`.
+- Player death, boss encounter boundaries, run metadata, and ranked likely cause
+  are **Partially verified** on one retail 12.1.0 Mythic+ session (two timed
+  keys, seven boss encounters, twelve player deaths observed).
+- Yeet classification, multi-log run continuity, and guaranteed visibility for
+  all four configured tracked characters across many runs remain **Not
+  investigated** or open.
+- Phase 0 is **not complete**.
 
 ---
 
@@ -198,6 +201,7 @@ When recording observations (Phase 0 onward):
 
 | Date | Build | ACL enabled | Scenario # | Fixture | Observation summary | Matrix rows updated |
 | ---- | ----- | ----------- | ---------- | ------- | ------------------- | ------------------- |
+| 2026-08-19 | 12.1.0 retail | Header `0`, advanced rows present | Local retail M+ session | `local-data/raw-logs/` (not committed) | Two timed keys, encounter metadata, twelve player deaths, decimal damage schools, float challenge timers; detection prototype validated | Parser school/timer rows; death/run/encounter/cause rows partially verified |
 | 2026-07-30 | V22 docs target 12.0+ | Not applicable | Synthetic preparation | [`synthetic/`](../testdata/logs/synthetic/README.md) | Original fixtures prepared; timestamp envelope and `UNIT_DIED` suffix unresolved; no parser or real-log validation | Format-related rows only |
 | 2026-07-30 | V22 docs target 12.0+ | Not applicable | Phase 0B.1 technical tests | [`synthetic/`](../testdata/logs/synthetic/README.md) | Bounded streaming, CSV, common-header, unknown, malformed, partial-tail, and version-quarantine tests pass; no death inference | File mechanics and parser foundation only |
 | 2026-07-30 | V22 selected reference targets 12.0+ | Not applicable | Limited Phase 0B.2 technical tests | [`typed-damage-v22.txt`](../testdata/logs/synthetic/typed-damage-v22.txt), [`typed-metadata-v22.txt`](../testdata/logs/synthetic/typed-metadata-v22.txt), [`typed-payload-invalid-v22.txt`](../testdata/logs/synthetic/typed-payload-invalid-v22.txt) | Seven selected layouts parse into typed payloads; primitive failures and non-fatal diagnostics are separately counted; no real log or death semantics | Typed parser rows only |

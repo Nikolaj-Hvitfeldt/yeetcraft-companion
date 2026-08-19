@@ -305,11 +305,14 @@ recognized metadata with no Phase 0B.2 typed parser.
 | 2 | `success` |
 | 3 | `keystone_level` |
 | 4 | optional `total_time_ms` |
-| 5 | optional `on_time_seconds` |
-| 6 | optional `timer_limit_seconds` |
+| 5 | optional `on_time_seconds` (float) |
+| 6 | optional `timer_limit_seconds` (float) |
 
-These layouts document available fields, not their visibility or reliability in
-a real Mythic+ run.
+Retail 12.1.0 logs observed in Phase 0A.2 emit floating-point tokens such as
+`170.000000` for both optional timer fields.
+
+Damage suffix field `school` accepts either `0x`-prefixed hex or plain decimal
+masks in retail logs. Spell-prefix `spell_school` remains strict hex.
 
 ## Phase 0B usage boundaries
 

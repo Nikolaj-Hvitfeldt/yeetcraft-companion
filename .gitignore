@@ -72,6 +72,5 @@ plans/drafts/
 
 # Private local research data
 local-data/
-docs/
 
 # Do not ignore intentional fixtures under testdata/
