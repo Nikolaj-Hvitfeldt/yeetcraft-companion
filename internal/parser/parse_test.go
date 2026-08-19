@@ -76,7 +76,7 @@ func TestTypedSyntheticFixtures(t *testing.T) {
 		wantDiagnostics   int
 		wantIntegerErrors int
 	}{
-		{"typed-damage-v22.txt", 5, 0, 0, 0},
+		{"typed-damage-v22.txt", 6, 0, 0, 0},
 		{"typed-metadata-v22.txt", 6, 0, 0, 0},
 		{"typed-payload-invalid-v22.txt", 2, 1, 3, 1},
 	}

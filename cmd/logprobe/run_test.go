@@ -35,7 +35,7 @@ func TestRunFixtureExitCodes(t *testing.T) {
 		{"non-integer project", "version-project-id-non-integer.txt", exitUnsupported, "malformed_version_headers: 1"},
 		{"signed timestamp offset", "timestamp-signed-offset.txt", exitOK, "unknown_event_types: 1"},
 		{"malformed common header", "common-header-too-few-fields.txt", exitOK, "malformed_common_headers: 1"},
-		{"typed damage", "typed-damage-v22.txt", exitOK, "typed_payloads_parsed: 5"},
+		{"typed damage", "typed-damage-v22.txt", exitOK, "typed_payloads_parsed: 6"},
 		{"typed metadata", "typed-metadata-v22.txt", exitOK, "typed_challenge_mode_end_parsed: 2"},
 		{"typed invalid and diagnostics", "typed-payload-invalid-v22.txt", exitOK, "validation_diagnostics: 3"},
 	}
@@ -279,4 +279,31 @@ func outputCount(t *testing.T, output, key string) int {
 	}
 	t.Fatalf("missing output counter %q in %q", key, output)
 	return 0
+}
+
+func TestRunDeathReport(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{
+		"--file", fixturePath("boss-context-death.txt"),
+		"--deaths",
+		"--track-guid", "Player-9999-00000004",
+	}, &stdout, &stderr)
+	if exit != exitOK {
+		t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"player_deaths: 1",
+		"death_1_victim_guid: Player-9999-00000004",
+		"death_1_encounter_id: 990001",
+		"death_1_cause_1_spell_name: Synthetic Collapse",
+		"death_1_cause_1_confidence: high",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout = %q, want %q", out, want)
+		}
+	}
+	if strings.Contains(out, "TrackedDelta") || strings.Contains(out, "SyntheticRealm") {
+		t.Fatalf("stdout leaked victim name/realm: %q", out)
+	}
 }

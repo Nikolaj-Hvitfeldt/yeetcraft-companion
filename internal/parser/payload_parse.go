@@ -9,7 +9,7 @@ const noUnitGUID = "0000000000000000"
 
 func parseTypedPayload(eventType string, fields []string, common *CommonHeader) TypedResult {
 	switch eventType {
-	case "SPELL_DAMAGE":
+	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE":
 		return parseSpellDamage(fields, common, false)
 	case "RANGE_DAMAGE":
 		return parseSpellDamage(fields, common, true)
@@ -82,6 +82,17 @@ func parseHexField(fields []string, eventType string, index int, name string) (u
 		return 0, valueError(TypedErrorEmptyRequired, eventType, name, index)
 	}
 	value, ok := parseHexUint32(fields[index])
+	if !ok {
+		return 0, valueError(TypedErrorHex, eventType, name, index)
+	}
+	return value, nil
+}
+
+func parseSchoolField(fields []string, eventType string, index int, name string) (uint32, *TypedPayloadError) {
+	if fields[index] == "" {
+		return 0, valueError(TypedErrorEmptyRequired, eventType, name, index)
+	}
+	value, ok := parseSchoolUint32(fields[index])
 	if !ok {
 		return 0, valueError(TypedErrorHex, eventType, name, index)
 	}
@@ -239,7 +250,7 @@ func parseDamageSuffix(fields []string, eventType string, start int) (DamageSuff
 			return DamageSuffix{}, err
 		}
 	}
-	if damage.School, err = parseHexField(fields, eventType, start+3, "school"); err != nil {
+	if damage.School, err = parseSchoolField(fields, eventType, start+3, "school"); err != nil {
 		return DamageSuffix{}, err
 	}
 	if damage.Critical, err = parseBoolOrNil(fields, eventType, start+7, "critical"); err != nil {
@@ -499,7 +510,7 @@ func parseChallengeModeEnd(fields []string) TypedResult {
 		payload.OnTimeSeconds = &value
 	}
 	if len(fields) == 7 {
-		value, parseErr := parseIntField(fields, eventType, 6, "timer_limit_seconds")
+		value, parseErr := parseFloatField(fields, eventType, 6, "timer_limit_seconds")
 		if parseErr != nil {
 			return invalidTyped(parseErr)
 		}

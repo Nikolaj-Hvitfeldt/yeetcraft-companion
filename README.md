@@ -21,21 +21,22 @@ These are **separate products**:
 
 **Phase 0 evidence work is in progress.** The repository contains a bounded
 streaming V22 parser, source-backed typed parsing for selected damage and
-metadata events, fail-closed version/project quarantine, synthetic fixtures,
-and the privacy-safe `cmd/logprobe` diagnostic CLI.
+metadata events, a Phase 0 **death-detection prototype** (`internal/detection`),
+fail-closed version/project quarantine, synthetic fixtures, and the privacy-safe
+`cmd/logprobe` diagnostic CLI (`--deaths` reports death candidates).
 
 The following are **not** implemented yet:
 
 - File watching
 - Local SQLite storage
-- Death, cause, identity, or run detection
 - Upload to Yeetcraft
 - Review UI (including a future Wails-based desktop shell)
 - WoW addon integration (deferred)
 
-Typed parsing is synthetically tested against the project's selected canonical
-V22 reference. It is not verification against a real retail log and does not
-establish that one logger can observe deaths or causes reliably.
+Typed parsing is synthetically tested and partially validated against a local
+retail 12.1.0 log kept under `local-data/` (gitignored). Use `logprobe --file
+<path> --deaths [--track-guid <Player-GUID>]` to inspect death candidates
+without uploading raw logs.
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the planned phases.
 

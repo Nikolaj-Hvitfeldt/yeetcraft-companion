@@ -146,12 +146,15 @@ func TestTypedPayloadsParseEveryIncludedLayout(t *testing.T) {
 		},
 		{
 			"challenge mode end",
-			[]string{"CHALLENGE_MODE_END", "501", "1", "12", "1800000", "-12.5", "1800"},
+			[]string{"CHALLENGE_MODE_END", "501", "1", "12", "1800000", "-12.5", "1800.000000"},
 			func(t *testing.T, payload TypedPayload) {
 				t.Helper()
 				value, ok := payload.(ChallengeModeEndPayload)
 				if !ok || !value.Success || value.OnTimeSeconds == nil || *value.OnTimeSeconds != -12.5 {
 					t.Fatalf("payload = %#v", payload)
+				}
+				if value.TimerLimitSeconds == nil || *value.TimerLimitSeconds != 1800 {
+					t.Fatalf("timer limit = %#v", value.TimerLimitSeconds)
 				}
 			},
 		},
@@ -267,18 +270,8 @@ func TestTypedPrimitiveFailures(t *testing.T) {
 			TypedErrorInteger,
 		},
 		{
-			"malformed hex",
+			"malformed school",
 			func(fields []string) []string { fields[34] = "not-hex"; return fields },
-			TypedErrorHex,
-		},
-		{
-			"decimal is not hexadecimal",
-			func(fields []string) []string { fields[34] = "4"; return fields },
-			TypedErrorHex,
-		},
-		{
-			"octal-looking value is not hexadecimal",
-			func(fields []string) []string { fields[34] = "010"; return fields },
 			TypedErrorHex,
 		},
 		{
@@ -322,6 +315,17 @@ func TestTypedPrimitiveFailures(t *testing.T) {
 				t.Fatalf("event = %#v", event)
 			}
 		})
+	}
+}
+
+func TestParseSchoolFieldAcceptsRetailDecimalTokens(t *testing.T) {
+	for _, school := range []string{"4", "010", "106"} {
+		fields := syntheticSpellDamage("SPELL_DAMAGE")
+		fields[34] = school
+		event := parseSyntheticFields(fields)
+		if event.Typed.Status != TypedStatusParsed {
+			t.Fatalf("school %q typed = %#v", school, event.Typed)
+		}
 	}
 }
 

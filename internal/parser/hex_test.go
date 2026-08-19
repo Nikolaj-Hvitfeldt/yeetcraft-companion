@@ -29,3 +29,23 @@ func TestParseHexUint32(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSchoolUint32(t *testing.T) {
+	tests := []struct {
+		token  string
+		want   uint32
+		wantOK bool
+	}{
+		{token: "0x4", want: 4, wantOK: true},
+		{token: "4", want: 4, wantOK: true},
+		{token: "106", want: 106, wantOK: true},
+		{token: "0x1", want: 1, wantOK: true},
+		{token: "not-a-school"},
+	}
+	for _, tt := range tests {
+		got, ok := parseSchoolUint32(tt.token)
+		if ok != tt.wantOK || got != tt.want {
+			t.Fatalf("parseSchoolUint32(%q) = %#x, %v; want %#x, %v", tt.token, got, ok, tt.want, tt.wantOK)
+		}
+	}
+}

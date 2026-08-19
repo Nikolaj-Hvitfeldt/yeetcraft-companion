@@ -99,8 +99,8 @@ docs/                      Plans and integration notes
 ## Phased work
 
 Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase
-0A.1, Phase 0B.1, and limited Phase 0B.2 are complete; Phase 0A.2 remains
-pending.**
+0A.1, Phase 0B.1, limited Phase 0B.2, and the Phase 0 detection prototype are
+complete; Phase 0A.2 remains partially complete; Phase 0 is not complete.**
 
 - Further Phase 0 parser or detection work is allowed only through an
   explicitly approved phase task.

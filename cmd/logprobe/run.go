@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/detection"
 	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
 )
 
@@ -48,10 +49,20 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("logprobe", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: logprobe --file <path>")
+		fmt.Fprintln(stderr, "Usage: logprobe --file <path> [--deaths] [--track-guid <Player-GUID> ...]")
 		fmt.Fprintln(stderr, "Reads a combat log and prints privacy-safe parser counts.")
+		fmt.Fprintln(stderr, "With --deaths, also prints tracked player death candidates.")
 	}
 	filePath := flags.String("file", "", "combat-log file to read")
+	reportDeaths := flags.Bool("deaths", false, "report player death candidates")
+	var trackGUIDs []string
+	flags.Func("track-guid", "limit death detection to a player GUID (repeatable)", func(value string) error {
+		if value == "" {
+			return fmt.Errorf("track-guid requires a value")
+		}
+		trackGUIDs = append(trackGUIDs, value)
+		return nil
+	})
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return exitOK
@@ -72,7 +83,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	state := &parser.ParserState{}
 	var counts eventCounts
+	var deathTracker *detection.Tracker
+	if *reportDeaths {
+		deathTracker = detection.NewTracker(trackGUIDs...)
+	}
 	summary, err := parser.ScanReader(file, parser.DefaultMaxLineSize, state, func(event parser.Event) error {
+		if deathTracker != nil {
+			if err := deathTracker.Observe(event); err != nil {
+				return err
+			}
+		}
 		switch event.Kind {
 		case parser.KindCommonHeader:
 			counts.commonHeader++
@@ -145,6 +165,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "incomplete_trailing: %d\n", boolInt(summary.IncompleteTail))
 	fmt.Fprintf(stdout, "incomplete_trailing_bytes: %d\n", summary.IncompleteTailBytes)
 	fmt.Fprintf(stdout, "format_state: %s\n", state.Format)
+	if deathTracker != nil {
+		printDeathSummary(stdout, deathTracker.Deaths())
+	}
 
 	if state.Format != parser.FormatStateSupportedV22 {
 		return exitUnsupported

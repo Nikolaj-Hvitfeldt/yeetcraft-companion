@@ -16,3 +16,17 @@ func parseHexUint32(token string) (uint32, bool) {
 	}
 	return uint32(value), true
 }
+
+// parseSchoolUint32 parses spell-school masks from V22 damage suffixes. Retail
+// logs may emit either 0x-prefixed hex or plain decimal tokens for the same
+// value; spell-prefix schools remain strict hex via parseHexUint32.
+func parseSchoolUint32(token string) (uint32, bool) {
+	if value, ok := parseHexUint32(token); ok {
+		return value, true
+	}
+	value, err := strconv.ParseUint(token, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(value), true
+}

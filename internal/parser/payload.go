@@ -237,7 +237,7 @@ type ChallengeModeEndPayload struct {
 	KeystoneLevel     int64
 	TotalTimeMS       *int64
 	OnTimeSeconds     *float64
-	TimerLimitSeconds *int64
+	TimerLimitSeconds *float64
 }
 
 func (ChallengeModeEndPayload) typedPayload() {}

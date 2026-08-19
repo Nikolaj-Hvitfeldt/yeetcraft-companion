@@ -66,11 +66,12 @@ var metadataEvents = map[string]struct{}{
 // commonHeaderEvents is deliberately explicit. Field count alone never makes
 // an event type recognized, and no wildcard/prefix matching is used.
 var commonHeaderEvents = map[string]struct{}{
-	"SPELL_DAMAGE":         {},
-	"RANGE_DAMAGE":         {},
-	"SWING_DAMAGE":         {},
-	"ENVIRONMENTAL_DAMAGE": {},
-	"UNIT_DIED":            {},
+	"SPELL_DAMAGE":          {},
+	"SPELL_PERIODIC_DAMAGE": {},
+	"RANGE_DAMAGE":          {},
+	"SWING_DAMAGE":          {},
+	"ENVIRONMENTAL_DAMAGE":  {},
+	"UNIT_DIED":             {},
 }
 
 func extractCommonHeader(fields []string) (*CommonHeader, []string, error) {
