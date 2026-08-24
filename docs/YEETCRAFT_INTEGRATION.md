@@ -255,6 +255,7 @@ If a companion task requires Yeetcraft changes, stop and describe the cross-repo
 ## Related documentation
 
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased roadmap, proposed ingest API, data model
+- [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)
 - [AGENTS.md](../AGENTS.md) — agent boundaries and verification checklist
 - [README.md](../README.md) — companion purpose, build, and current status

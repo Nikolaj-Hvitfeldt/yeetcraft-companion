@@ -75,6 +75,7 @@ Copy `.env.example` to `.env` and adjust placeholders when features that read co
 
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 - [Yeetcraft integration](docs/YEETCRAFT_INTEGRATION.md)
+- [Character and encounter handoff](docs/CHARACTER_AND_ENCOUNTER_HANDOFF.md)
 - [Combat-log capabilities](docs/COMBAT_LOG_CAPABILITIES.md)
 - [Agent instructions](AGENTS.md) — for AI coding assistants working in this repo
 
