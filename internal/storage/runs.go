@@ -38,6 +38,39 @@ type RunInput struct {
 	StartedAt                 time.Time
 }
 
+// GetActiveRun returns the most recently started active run, if any.
+func (db *DB) GetActiveRun(ctx context.Context) (*RunRecord, error) {
+	row := db.sql.QueryRowContext(ctx, `
+		SELECT id, client_run_id, challenge_mode_start_instant, challenge_map_id,
+		       keystone_level, status, metadata_json, started_at, ended_at
+		FROM runs
+		WHERE status = ?
+		ORDER BY started_at DESC
+		LIMIT 1
+	`, RunStatusActive)
+	return scanRun(row)
+}
+
+// UpdateRunStatus sets the terminal or transitional status for a persisted run.
+func (db *DB) UpdateRunStatus(ctx context.Context, clientRunID, status string, endedAt time.Time) error {
+	result, err := db.sql.ExecContext(ctx, `
+		UPDATE runs
+		SET status = ?, ended_at = ?
+		WHERE client_run_id = ?
+	`, status, endedAt.UTC().Format(time.RFC3339Nano), clientRunID)
+	if err != nil {
+		return fmt.Errorf("update run status: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update run status rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("update run status: run %q not found", clientRunID)
+	}
+	return nil
+}
+
 // GetRunByClientRunID returns a run by its deterministic client_run_id.
 func (db *DB) GetRunByClientRunID(ctx context.Context, clientRunID string) (*RunRecord, error) {
 	row := db.sql.QueryRowContext(ctx, `

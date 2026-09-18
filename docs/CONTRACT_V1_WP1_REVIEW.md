@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Phase 1 review notes — not a contract |
+| Status | Phase 1 review notes — not a contract. Phase 2 headless capture closed most producer gaps listed below; see [`IMPLEMENTATION_PLAN.md` §8.4](./IMPLEMENTATION_PLAN.md#84-phase-2--headless-companion-foundation). |
 | Canonical spec | `../yeetcraft/contracts/companion/v1/` (Yeetcraft-owned) |
 | Work package | WP1 + WP2 field mapping + WP3 acknowledgement review |
 | Last updated | 2026-09-18 |

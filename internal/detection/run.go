@@ -15,6 +15,16 @@ type runTracker struct {
 	startInstantHold parser.InstantHoldReason
 }
 
+// RestoreRun rehydrates active Mythic+ context after process restart.
+func (t *Tracker) RestoreRun(run RunContext) {
+	t.run.active = run.Active
+	t.run.mapID = run.MapID
+	t.run.keystoneLevel = run.KeystoneLevel
+	t.run.dungeonName = run.DungeonName
+	t.run.startInstant = run.StartInstant
+	t.run.startInstantHold = run.StartInstantHold
+}
+
 func (r *runTracker) context() RunContext {
 	return RunContext{
 		Active:           r.active,

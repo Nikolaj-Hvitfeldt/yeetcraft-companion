@@ -292,7 +292,7 @@ If a companion task requires Yeetcraft changes, stop and describe the cross-repo
 ## Related documentation
 
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased roadmap; §5 points at the canonical ingest contract
-- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — WP5 companion Phase 2 file map (not implemented)
+- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — Phase 2 companion file map and acceptance evidence
 - [CONTRACT_V1_DERIVED_FIXTURES.md](./CONTRACT_V1_DERIVED_FIXTURES.md) — checksum / drift strategy
 - [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)

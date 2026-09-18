@@ -82,9 +82,17 @@ func (db *DB) GetFileState(ctx context.Context, path, fileIdentity string) (*Fil
 }
 
 func commitTx(ctx context.Context, tx *sql.Tx, input CommitInput) error {
-	runID, err := upsertRunTx(ctx, tx, input.Run)
-	if err != nil {
-		return err
+	if len(input.Events) > 0 && input.Run.ClientRunID == "" {
+		return fmt.Errorf("commit events: run client_run_id required")
+	}
+
+	var runID int64
+	if input.Run.ClientRunID != "" {
+		var err error
+		runID, err = upsertRunTx(ctx, tx, input.Run)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, event := range input.Events {
