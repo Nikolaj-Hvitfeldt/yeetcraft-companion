@@ -28,11 +28,11 @@ Operational guide for AI coding assistants working in this repository.
 ## Contract ownership
 
 - The **canonical companion API contract** is owned by the Yeetcraft repository.
-- **Planned contract location (not implemented yet):** `./yeetcraft/contracts/companion/v1/`
-  - Verified absent at bootstrap; do not describe this path as existing until it does.
-- This repository may later contain **generated code or test fixtures** derived from that contract. Those copies must **not** become an alternative source of truth.
+- **Canonical location:** `../yeetcraft/contracts/companion/v1/` (draft — reviewed, not implemented as an API). Inspect before describing routes or tables as shipping.
+- This repository may later contain **generated code or test fixtures** derived from that contract. Those copies must **not** become an alternative source of truth. Do **not** copy the contract directory into this repository as an independently edited source.
+- Phase 2 file map: [`docs/PHASE_2_FILE_MAP.md`](docs/PHASE_2_FILE_MAP.md). Yeetcraft Phase 3 map: `../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`.
 - Contract changes must be **coordinated explicitly** across both repositories.
-- Until the companion contract exists, treat Yeetcraft `docs/API.md` as reference for the **existing** web API only — not as the companion upload spec.
+- Treat Yeetcraft `docs/API.md` as reference for the **existing** web API only — not as the companion upload spec.
 
 ## Development behavior
 
@@ -136,6 +136,6 @@ Before marking a task complete:
 
 Resolve in docs or scoped tasks; do not guess in production code:
 
-- Companion upload API schema (awaiting `./yeetcraft/contracts/companion/v1/`).
+- Companion upload API schema is specified in `../yeetcraft/contracts/companion/v1/` (draft; API not implemented).
 - Combat-log events for deaths, yeets, dungeon, and party roster.
 - Desktop shell timing (CLI-first vs early Wails).

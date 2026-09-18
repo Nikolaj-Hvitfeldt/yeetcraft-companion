@@ -4,7 +4,7 @@ Integration architecture and ownership between the [Yeetcraft](https://github.co
 
 | | |
 | --- | --- |
-| **Status** | Phase 1 WP1 complete — canonical Markdown in Yeetcraft; no ingest API or upload client |
+| **Status** | Phase 1 WP5 file maps recorded — no ingest API, SQLite, watcher, or upload client |
 | **Last updated** | 2026-09-18 |
 
 This document describes **how the two products relate**. It does not define an approved API contract, payload schema, or retry policy. For proposed designs, see [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
@@ -98,8 +98,10 @@ design decision.
 
 | Item | Owner | Location |
 | ---- | ----- | -------- |
-| Canonical companion API contract | **Yeetcraft** | `../yeetcraft/contracts/companion/v1/` (WP1 Markdown; schemas deferred to WP2/WP3) |
+| Canonical companion API contract | **Yeetcraft** | `../yeetcraft/contracts/companion/v1/` (canonical; this repo must not copy it as source of truth) |
 | Derived client fixtures / generated types | Companion (optional) | This repo only as copies; never an alternate source of truth |
+| Phase 2 file map | Companion | [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) |
+| Phase 3 file map | Yeetcraft | [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) |
 
 Contract changes may require **separate pull requests** in both repositories (schema in Yeetcraft, client and tests in companion). Coordinate version bumps explicitly.
 
@@ -269,6 +271,7 @@ If a companion task requires Yeetcraft changes, stop and describe the cross-repo
 ## Related documentation
 
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased roadmap, proposed ingest API, data model
+- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — WP5 companion Phase 2 file map (not implemented)
 - [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)
 - [AGENTS.md](../AGENTS.md) — agent boundaries and verification checklist

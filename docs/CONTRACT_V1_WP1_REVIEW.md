@@ -325,4 +325,9 @@ companion schema or uploader changes are required for WP4.
 
 ## Next step
 
-**WP5** — repository-separated Phase 2/3 implementation file map (Yeetcraft).
+**Validate** — machine-validate schemas/examples and relative links. Do not start Phase 2/3 implementation from this review doc.
+
+WP5 file maps (documentation only; Phase 2/3 not done):
+
+- Companion Phase 2: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md)
+- Yeetcraft Phase 3: [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md)

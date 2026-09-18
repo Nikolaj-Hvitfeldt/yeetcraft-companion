@@ -171,7 +171,7 @@ yeetcraft/
 ├── backend/
 ├── frontend/
 ├── contracts/
-│   └── companion/v1/          # planned; canonical schema (not implemented yet)
+│   └── companion/v1/          # canonical draft contract in Yeetcraft (API not implemented)
 └── docs/
 ```
 
@@ -182,6 +182,7 @@ yeetcraft-companion/
 ├── AGENTS.md
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md
+│   ├── PHASE_2_FILE_MAP.md    # WP5 map; Phase 2 not implemented
 │   ├── YEETCRAFT_INTEGRATION.md
 │   ├── COMBAT_LOG_FORMAT_V22.md
 │   └── COMBAT_LOG_CAPABILITIES.md
@@ -223,10 +224,11 @@ projects/
 
 ### 3.4 Contract ownership
 
-- Place the canonical v1 request/response schema and examples in the **Yeetcraft repository** at `./yeetcraft/contracts/companion/v1/` (**planned — not implemented yet**).
+- Place the canonical v1 request/response schema and examples in the **Yeetcraft repository** at `../yeetcraft/contracts/companion/v1/` (draft Markdown + JSON Schema + examples; **API not implemented**).
 - During development, companion contract tests may read `../yeetcraft/contracts/companion/v1/` from the sibling checkout.
-- The compiled companion supports an explicit schema version and must also be testable **without** the sibling repository by using its own request fixtures.
+- The compiled companion supports an explicit schema version and must also be testable **without** the sibling repository by using its own **derived** request fixtures.
 - **Do not maintain two independently edited canonical schemas.** Generated code or fixtures in this repository are derived copies, not source of truth.
+- Phase 2/3 paths: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) and Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
 
 ---
 
@@ -719,7 +721,9 @@ Deliverables:
 - [ ] Define reconciliation with existing manual aggregate statistics
 - [ ] Record approved decisions in this plan or focused ADRs if the decision
   history becomes too large
-- [ ] Produce an exact, repository-separated Phase 2/3 file change map
+- [x] Produce an exact, repository-separated Phase 2/3 file change map
+  ([`docs/PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md); Yeetcraft
+  [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md))
 - [ ] Review the contract against existing `PATCH /api/stats/batch`, auth,
   offline frontend behavior, and guarded test-database requirements
 
@@ -732,6 +736,8 @@ upload implementation is required to complete Phase 1.
 
 ### 8.4 Phase 2 — Headless companion foundation
 
+**Status: not started.** File map only: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md).
+
 Deliverables: Go command, migrations, `logwatcher`/`parser`/`session`/`storage` packages, fixture tests.
 
 **Acceptance criteria:** Restart, truncation, and rotation tests pass; events persist exactly once locally.
@@ -739,6 +745,9 @@ Deliverables: Go command, migrations, `logwatcher`/`parser`/`session`/`storage` 
 ### 8.5 Phase 3 — Backend event model and ingest
 
 **Owner: Yeetcraft repository**
+
+**Status: not started.** File map only:
+[`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
 
 Transaction boundary:
 
@@ -951,7 +960,7 @@ canonical v1 contract is reviewed.
 | ----------- | -------- |
 | Yeetcraft `contracts/companion/v1/` | Canonical versioned schemas/examples after review |
 | Decision record | Identity, idempotency, classification, auth, privacy, and reconciliation choices |
-| Repository file maps | Separate Phase 2 companion and Phase 3 Yeetcraft implementation scopes |
+| Repository file maps | [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) (companion Phase 2); Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) (Phase 3). Maps only — Phase 2/3 not implemented. |
 | Contract review evidence | Compatibility review against current API, frontend writes, and test guards |
 
 ---
@@ -999,7 +1008,8 @@ canonical v1 contract is reviewed.
 ../yeetcraft/frontend/src/main.tsx
 ../yeetcraft/frontend/e2e/
 ../yeetcraft/frontend/package.json
-../yeetcraft/contracts/companion/v1/    # planned; not present yet
+../yeetcraft/contracts/companion/v1/    # canonical draft contract (reviewed, not implemented as an API)
+../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md  # WP5 Yeetcraft Phase 3 file map
 ```
 
 **Companion (this repository):**
@@ -1007,6 +1017,7 @@ canonical v1 contract is reviewed.
 ```text
 ./AGENTS.md
 ./docs/IMPLEMENTATION_PLAN.md
+./docs/PHASE_2_FILE_MAP.md
 ./docs/YEETCRAFT_INTEGRATION.md
 ./docs/COMBAT_LOG_CAPABILITIES.md
 ./cmd/
@@ -1032,6 +1043,7 @@ canonical v1 contract is reviewed.
 ## Related documentation
 
 - [YEETCRAFT_INTEGRATION.md](./YEETCRAFT_INTEGRATION.md)
+- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md)
 - [COMBAT_LOG_FORMAT_V22.md](./COMBAT_LOG_FORMAT_V22.md)
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
 - [Synthetic fixture provenance](../testdata/logs/synthetic/README.md)
