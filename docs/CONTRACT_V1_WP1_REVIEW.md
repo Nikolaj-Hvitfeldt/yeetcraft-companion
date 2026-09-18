@@ -211,7 +211,7 @@ gate `observeDeath` output before serialization.
 | Contract concept | Current producer | Status |
 | ---------------- | ---------------- | ------ |
 | Ingest category | Contract: server defaults to `death`; ingest omits or constrains category | No upload; detection does not assign category |
-| `yeet` / `ignored` | Website post-ingest correction (WP4) | Not companion wire v1 |
+| `yeet` / `ignored` | Website post-ingest correction ([Yeetcraft ADR 001](../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)) | Not companion wire v1 |
 | User manual classification | `internal/review/` stub | Phase 5 |
 | Detector yeet suggestion | Not implemented | Out of MVP scope |
 
@@ -309,7 +309,20 @@ Canonical WP3 spec:
 - [x] Per-event outcome parsing deferred to Phase 4 (no companion schema copy)
 - [x] No contradiction with frozen WP1/WP2 ID or payload shapes
 
+## WP4 — classification and corrections (Yeetcraft-owned)
+
+Classification (`death` / `yeet` / `ignored`), correction transitions, and
+revision-protected aggregate reconciliation are **Yeetcraft server behavior**,
+not part of the companion v1 wire contract. Canonical specification:
+
+| Document | Role |
+| -------- | ---- |
+| [Yeetcraft ADR 001](../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md) | Post-ingest classification, correction model, transition matrix |
+| [Yeetcraft ADR 002](../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md) | Derived aggregates, manual adjustments, `expectedRevision` / `stale_revision` |
+
+Companion producers continue to omit `category` or send `death` only. No
+companion schema or uploader changes are required for WP4.
+
 ## Next step
 
-**WP4** — Yeetcraft correction ADRs and revision-protected adjustment ledger
-(server context only; not companion wire schema).
+**WP5** — repository-separated Phase 2/3 implementation file map (Yeetcraft).
