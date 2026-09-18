@@ -57,13 +57,15 @@ The safest migration is **additive**. Existing public GET routes, manual editing
 
 ### 2026-09-18 — Manual death/yeet classification is the MVP authority
 
-- Every accepted `UNIT_DIED` candidate starts as an ordinary `death`.
-- A user may reclassify it to `yeet`, return it to `death`, or mark it
-  `ignored`.
+- Every accepted `UNIT_DIED` candidate starts as an ordinary `death` (server
+  default on ingest).
+- The **Yeetcraft website** may reclassify it to `yeet`, return it to `death`,
+  or mark it `ignored` ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)).
+  Companion local review is not classification authority.
 - Exactly one accepted event contributes to exactly one aggregate category;
   `death → yeet` moves one count atomically and never increases total mistakes.
 - Cause confidence and future automatic yeet logic may produce review
-  suggestions, but must not override a user's confirmed classification.
+  suggestions, but must not override a confirmed website classification.
 - Perfect automatic yeet detection is not a Phase 0 or MVP gate.
 
 ---
@@ -88,8 +90,8 @@ The safest migration is **additive**. Existing public GET routes, manual editing
 - Detection of configured Yeetcraft players' `UNIT_DIED`-style events and a bounded recent-damage context.
 - Local SQLite event store and upload outbox.
 - Versioned batch ingest with stable IDs and server-side duplicate protection.
-- Detected deaths default to ordinary deaths; users can reclassify them as
-  yeets or ignored during review.
+- Detected deaths default to ordinary deaths. The Yeetcraft website reclassifies
+  them as `yeet` or `ignored` ([ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)).
 
 ### 1.3 Explicitly deferred
 
@@ -247,24 +249,27 @@ projects/
 
 The target schema should treat Yeetcraft as a small run/event system. Aggregated leaderboards remain important outputs, but they should no longer be the only source data for new activity.
 
-| Table | Purpose | Important fields |
-| ----- | ------- | ---------------- |
-| `players` | Real people/profile owners | `id`, `display_name`, `slug`, `avatar_url`, `active` |
-| `characters` | WoW characters owned by a player | `id`, `player_id`, `guid` UNIQUE, `name`, `realm`, `region`, `class_id`, `active` |
-| `character_roles` | Optional many-role presentation data | `character_id`, `role` |
-| `seasons` | Existing season boundary | `id`, `name`, `expansion`, `is_current` |
-| `dungeons` | Canonical dungeon | `id`, `game_instance_id`, `name`, `short_name` |
-| `season_dungeons` | Existing seasonal pool | `season_id`, `dungeon_id`, `display_order` |
-| `encounters` | Boss encounter belonging to a dungeon | `id`, `dungeon_id`, `journal_encounter_id`, `name`, `display_order` |
-| `runs` | One Mythic+ attempt | `id`, `client_run_id` UNIQUE, `season_id`, `dungeon_id`, `key_level`, `started_at`, `ended_at`, `status` |
-| `run_participants` | Characters/players present in a run | `run_id`, `character_id`, `player_id` snapshot, `role`, `joined_at` |
-| `death_events` | One observable player death | `id`, `client_event_id` UNIQUE, `run_id`, `character_id`, `encounter_id` NULL, `category`, `confidence` |
-| `death_causes` | Ranked likely cause evidence | `death_event_id`, `rank`, `source_type`, `source_game_id`, `source_name`, `spell_id`/`name`, `overkill` |
-| `stat_adjustments` | Manual corrections and migrated historic baseline | `player_id`, `season_id`, `dungeon_id`, `deaths_delta`, `yeets_delta`, `reason` |
-| `companion_clients` | Revocable installation identity | `id`, `label`, `credential_hash`, `version`, `last_seen_at`, `revoked_at` |
-| `ingest_batches` | Minimal sync diagnostics | `id`, `client_id`, `batch_id` UNIQUE, counts, `received_at` |
+**Exact PostgreSQL table and column names are Phase 3 DDL.** Semantics below
+must follow the frozen ingest contract and ADRs; this table is not a second
+wire spec and must not reintroduce names/realms, append-only PATCH deltas, or
+per-installation auth.
 
-*Schema decisions above are **target design** for Yeetcraft-side work (Phase 3+). They are not implemented in either repository yet.*
+| Concept | Purpose | Phase 1-aligned fields |
+| ------- | ------- | ---------------------- |
+| `players` | Real people/profile owners | Existing `id`, `display_name`, `avatar_url` |
+| `characters` | WoW characters owned by a player | Character-slice blocker: nullable **unique** `guid` ([`CHARACTERS_AND_BOSS_NEMESIS.md`](../../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md)) |
+| `seasons` | Season boundary | Existing `name`, `expansion`, `is_current` (**UI default only; never ingest authority**). Phase 3: non-overlapping `starts_at` / `ends_at` |
+| `dungeons` | Canonical dungeon | Existing `name`, `short_name`. Phase 3: nullable unique `challenge_map_id` (not a generic `game_instance_id`) |
+| `season_dungeons` | Seasonal pool | Existing `season_id`, `dungeon_id`, `display_order` |
+| `encounters` | Boss belonging to a dungeon | Journal `encounterId` on the wire; server catalog is later Yeetcraft work |
+| `runs` | One Mythic+ attempt | `client_run_id` UNIQUE from the locked recipe; start instant, map ID, keystone level. Companion `seasonId` is a **validated hint** |
+| `death_events` | One observable tracked-player death | `client_event_id` UNIQUE; server default `category = death`; event revision for website corrections. `encounter_id` nullable (trash = null) |
+| `death_causes` | Ranked cause evidence | `rank`, `source_type`, `spell_id`, `creature_id`, `amount`, `overkill`, `confidence`. **No** player names, realms, untracked GUIDs, or spell display names |
+| Adjustment ledger | ADR 002 | Immutable **legacy baseline** + **one replaceable** manual adjustment per player × season × dungeon × category. Not append-only `deaths_delta` / `yeets_delta` |
+| `ingest_batches` | Idempotency diagnostics | `batch_id` UNIQUE + request-body fingerprint. Not an authorization principal |
+| Per-installation clients | **Deferred** past the fixed-group MVP | `installationId` is spoofable diagnostics only; v1 uses one `COMPANION_API_KEY` |
+
+*Not implemented in either repository yet. Do not copy this table into the companion as a schema editor.*
 
 ### 4.3 Why boss and cause are separate
 
@@ -275,25 +280,26 @@ A player's “boss nemesis” is the boss encounter active when the player died.
 | Which boss kills this player most often? | `death_events.character_id`/player owner + `encounter_id` |
 | Which ability causes most deaths? | `death_causes.spell_id`, using rank 1 or confirmed cause |
 | Is the dungeon dangerous outside bosses? | `death_events` where `encounter_id` is null |
-| Did the boss or an add deliver the final hit? | `death_causes.source_type` and `source_game_id` |
+| Did the boss or an add deliver the final hit? | `death_causes.source_type` and `creature_id` |
 | Which character dies most? | `death_events.character_id` |
 | Which person dies most across alts? | `characters.player_id` |
 
 ### 4.4 Category and review model
 
-| Classification | Meaning | Aggregate effect | Review |
-| -------------- | ------- | ---------------- | ------ |
-| `death` | Accepted ordinary death; default for a detected real death | +1 death | User may reclassify |
-| `yeet` | User-confirmed yeet | +1 yeet | Confirmed |
-| `ignored` | Duplicate, non-party, false positive, or intentionally excluded event | None | Confirmed |
+| Classification | Meaning | Aggregate effect | Authority |
+| -------------- | ------- | ---------------- | --------- |
+| `death` | Accepted ordinary death; ingest default | +1 death | Server on accept; website may correct |
+| `yeet` | Website-confirmed yeet | +1 yeet | Yeetcraft website (ADR 001) |
+| `ignored` | Duplicate, false positive, or excluded | None | Yeetcraft website (ADR 001) |
 
 `possible_yeet` is a future detector **suggestion**, not an aggregate category.
 An unknown or ambiguous cause does not make the death disappear; it remains a
-normal death until a user changes its classification.
+normal death until the website changes its classification.
 
 **Accounting rule:** Reclassification moves one count atomically between
-deaths and yeets and must never increase total mistakes. A confirmed manual
-classification takes precedence over later detector reprocessing.
+deaths and yeets and must never increase total mistakes. A confirmed website
+classification takes precedence over later detector reprocessing. Companion
+review UI does not replace website authority.
 
 ### 4.5 Stable IDs
 
@@ -334,11 +340,21 @@ are the final deduplication boundary.
 
 ## 5. Versioned ingest API
 
-*Endpoint and schema below are **planned**. WP1 normative decisions live in the
-Yeetcraft canonical contract; payload shapes and acknowledgement codes remain
-WP2/WP3. The route is not implemented until Phase 3.*
+The **canonical** companion v1 ingest contract lives in Yeetcraft. This section
+is a pointer plus companion retry notes. It is **not** a second wire spec.
+Do not copy request JSON here.
 
-### 5.1 Endpoint
+| Artifact | Location |
+| -------- | -------- |
+| Normative spec | [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) |
+| Request / response / error schemas | [`../yeetcraft/contracts/companion/v1/schema/`](../../yeetcraft/contracts/companion/v1/schema/) |
+| Synthetic examples | [`../yeetcraft/contracts/companion/v1/examples/`](../../yeetcraft/contracts/companion/v1/examples/) |
+| Phase 3 file map | [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) |
+
+Status: **Draft — reviewed, not implemented.** The route does not exist until
+Yeetcraft Phase 3. Companion upload is Phase 4.
+
+### 5.1 Endpoint (frozen)
 
 ```http
 POST /api/companion/v1/deaths/batch
@@ -349,50 +365,43 @@ Content-Type: application/json
 - `batchId` is a **UUID in the JSON body**; there is no `Idempotency-Key`
   header in v1.
 - `COMPANION_API_KEY` is a **separate** server env var and middleware instance
-  from browser `API_KEY`; missing key fails closed with **503** on this route.
+  from browser `API_KEY`; missing or empty key fails closed with **503**
+  `companion_api_unconfigured`.
+- Do **not** reuse `PATCH /api/stats/batch` for event ingest.
 
-Using a dedicated endpoint avoids forcing event semantics into
-`PATCH /api/stats/batch`. Manual aggregate edits and automatic event ingestion
-have different validation, deduplication, and audit requirements.
+### 5.2 Request shape (frozen)
 
-### 5.2 Request shape
+Use `CONTRACT.md` request payloads and the request schema. Summary only:
 
-```json
-{
-  "schemaVersion": 1,
-  "client": {"installationId": "uuid", "version": "0.1.0"},
-  "batchId": "uuid",
-  "events": [{
-    "eventId": "sha256:...",
-    "runId": "sha256:...",
-    "occurredAt": "2026-07-30T19:43:12.123Z",
-    "player": {"guid": "Player-9999-00000001", "name": "TrackedAlpha", "realm": "SyntheticRealm"},
-    "dungeon": {"gameId": 0, "name": "Magisters' Terrace", "keyLevel": 12},
-    "classification": {"category": "death", "confidence": 0.94},
-    "cause": {
-      "sourceGuid": "Creature-...",
-      "sourceName": "Boss",
-      "spellId": 123456,
-      "spellName": "Ability",
-      "overkill": 245000
-    }
-  }]
-}
-```
+- Envelope: `schemaVersion: 1`, `batchId`, optional diagnostic `installationId`,
+  `events` (1–500).
+- Each event: `clientEventId`, tracked `characterGuid` only (no name/realm),
+  canonical `deathInstant`, `ordinal`, complete `run`, `encounter` or `null`,
+  optional ranked `causes`.
+- Ingest-only: omit `category` or send `"death"`. The server assigns default
+  `death`. `yeet` / `ignored` are website corrections ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)).
+- Cause evidence must not include player names, realms, or untracked GUIDs.
 
-### 5.3 Response and retry semantics
+### 5.3 Acknowledgement and retry (frozen; uploader is Phase 4)
 
-| Outcome | HTTP | Companion action |
-| ------- | ---- | ---------------- |
-| All accepted or duplicate | 200 | Mark each acknowledged event uploaded |
-| Mixed valid/invalid | 200/207 (design choice) | Acknowledge per event; quarantine permanent rejects |
-| Malformed/version unsupported | 400/422 | Do not retry unchanged; show actionable error |
-| Credential invalid | 401/403 | Pause uploader; request configuration |
-| Conflict requiring mapping | 409 | Move event to `needs_review` |
-| Rate limited | 429 | Respect `Retry-After` |
-| Render cold start/server failure | 502/503/504 or timeout | Keep pending; exponential backoff |
+Envelope/schema failures reject the **whole** request (no per-event body).
+A processable batch returns **HTTP 200** with exactly one ordered result per
+input event (`accepted`, `duplicate`, `needs_review`, `rejected`). There is
+**no** HTTP 207. Unknown GUID / unmapped map / season contradiction are
+**200** `needs_review` (quarantine), not 409. **409** is only `batch_conflict`
+or `event_id_conflict`. Database failure rolls back the batch, returns **5xx**,
+and stores no acknowledgement. Duplicate identical fingerprints must not reset
+a website correction.
 
-The API transaction should validate identity mappings, upsert the run, insert new death events with `ON CONFLICT DO NOTHING`, recompute or adjust affected aggregate rows, and commit. If aggregate update fails, the event insert must roll back. Duplicate events return an acknowledgement rather than an error.
+| Response | Companion action |
+| -------- | ---------------- |
+| 200 with `accepted` / `duplicate` / `needs_review` / `rejected` | Treat as acknowledged; persist ordered results locally |
+| 200 replay (same `batchId` + body) | Idempotent; replace local pending state |
+| 5xx with `retryable: true` (including `ingest_temporarily_unavailable`) | Retry same `batchId` and body with backoff |
+| 409 `batch_conflict` / `event_id_conflict` | Non-retryable; halt and surface for review |
+| 401, 413, 415, 422 | Fix request or configuration; do not blind-retry |
+| 429 | Honor `Retry-After` or backoff |
+| 503 `companion_api_unconfigured` | Operator must configure the server; retry later |
 
 ---
 
@@ -453,7 +462,9 @@ happens after normalized parsing.
 - Names, realms, and GUIDs for untracked party members must not be uploaded.
 - An untracked member may have an anonymized local representation only when
   required for run context.
-- Final GUID-to-tracked-character mapping remains an open design decision.
+- **WP1 locked:** GUID-first mapping to configured tracked identities.
+  Unmapped GUIDs are `unknown` / `needs_review`. Never auto-create a public
+  player. End-to-end ingest is blocked on Yeetcraft `characters.guid`.
 
 ```text
 combat-log line → neutral parser → normalized event → roster filter
@@ -648,7 +659,13 @@ incomplete death scenarios must not be promoted to passing success fixtures.
 - file append, rotation, truncation, and resumable offset behavior;
 - lethal environmental and knockback/void deaths for future suggestions;
 - unresolved semantics of selected V22 unknown fields and the exact
-  `UNIT_DIED` suffix.
+  `UNIT_DIED` suffix;
+- retail 12.0+ **timestamp envelope** confirmation (timezone-less vs
+  offset-bearing; DST). The v1 contract already fails closed: missing
+  persisted WoW-log timezone, DST ambiguity, invalid stamp, or missing run
+  start → local review, no hash, no upload. Confirming the exact envelope is
+  a scoped evidence task / Phase 2 parser work. Do not invent a new wire
+  timestamp format.
 
 Phase 0B design for advanced-block semantics remains open where the selected
 reference and observed V22 samples conflict. Do not infer suffix positions from
@@ -669,8 +686,8 @@ Phase 0A.1 deliverables:
 - [x] Current V22 format research, sources, and conflicts documented
 - [x] Original synthetic fixtures prepared and provenance recorded
 - [x] Capability vocabulary separates prepared fixtures from passing tests
-- [ ] Timestamp envelope and exact `UNIT_DIED` V22 suffix confirmed from a real
-  retail 12.0+ log (deferred to Phase 0A.2)
+- Timestamp envelope and exact `UNIT_DIED` V22 suffix: **moved** to the
+  residual evidence backlog (not a Phase 1 gate)
 
 Tasks:
 
@@ -726,8 +743,11 @@ Deliverables:
   [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md))
 - [x] Validate schemas/examples, error fixtures, relative links, and canonical checksum recording
   ([`docs/CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md))
-- [ ] Review the contract against existing `PATCH /api/stats/batch`, auth,
+- [x] Review the contract against existing `PATCH /api/stats/batch`, auth,
   offline frontend behavior, and guarded test-database requirements
+  (compatible with sequencing: ingest is a new route; `COMPANION_API_KEY` is
+  a second middleware; frontend `expectedRevision` before companion writes;
+  testdb stays schema.sql-only — see Yeetcraft `IMPLEMENTATION_MAP.md`)
 
 **Acceptance criteria:** The canonical v1 contract is reviewed and versioned in
 Yeetcraft; both repositories agree on identity, idempotency, classification,
@@ -809,34 +829,45 @@ See phase table above. Each phase requires its deliverables complete and exit cr
 | Schema drift | Old clients rejected | Medium | Versioned endpoint, explicit compatibility window and migration messages |
 | Player mapping fails | Wrong or rejected ownership | Medium | GUID-first mapping; `needs_review`; never guess between players |
 | Credential leaks | Unauthorized writes | Low/medium | Separate revocable key, credential manager, redacted logs |
-| Manual and automatic updates conflict | Incorrect aggregates | Medium | Define event vs adjustment authority; transactional recompute/delta and audit |
+| Manual and automatic updates conflict | Incorrect aggregates | Medium | ADR 002: derived totals + legacy baseline + replaceable adjustment; `409 stale_revision` |
 
 ---
 
 ## 11. Manual edits, historic data, and aggregate consistency
 
-The current `PATCH /api/stats/batch` edits aggregate values directly. Once event-based uploads exist, the system must define whether those values are derived facts or user-adjustable totals. Leaving both as independent authorities will eventually create drift.
+**Locked in [Yeetcraft ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md).**
+Do not treat the older option table as an open protocol choice.
 
-| Option | Description | Assessment |
-| ------ | ----------- | ---------- |
-| A. Event-derived only | Aggregates always recomputed from events; manual edits become event corrections | Best for new seasons, but cannot explain historic totals |
-| B. Keep aggregate table authoritative | Events increment mutable totals while PATCH can overwrite them | Simple initially, but creates two conflicting sources of truth |
-| C. Events + adjustment ledger | Totals = accepted events + explicit adjustment deltas | **Recommended:** supports migration, corrections, and event truth |
+```text
+displayed_* = event_derived_* + legacy_baseline_* + manual_adjustment_*
 
-**Recommended migration:** Convert every existing `player_dungeon_stats` row into one `stat_adjustments` baseline row with `reason='legacy_import'`. Do not fabricate runs, bosses, or death timestamps for historic data. For new companion-tracked activity, totals come from accepted events plus later explicit adjustments.
+manual_adjustment_* = entered_total − event_derived_* − legacy_baseline_*
+```
+
+- `player_dungeon_stats` becomes a **derived read model**.
+- Legacy baseline is a **one-time immutable** import (`reason = legacy_import`).
+  Do not fabricate runs, bosses, or death timestamps for historic data.
+- Manual PATCH stays **absolute entered totals** for browser UX. The server
+  **replaces** the single adjustment row per player × season × dungeon ×
+  category; it never appends a delta history for PATCH.
+- `expectedRevision` compare-and-set; stale offline writes return **409**
+  `stale_revision` and remain reviewable. Frontend revision support lands
+  **before** companion event writes are enabled.
+- `ignored` events contribute to neither deaths nor yeets.
 
 ### 11.1 Compatibility strategy
 
-1. Create the new tables alongside the existing schema.
-2. Backfill players' hardcoded characters from `frontend/src/data/player-characters.ts` with nullable GUID/realm until real logs identify them.
-3. Copy existing aggregate counts into `stat_adjustments` as a single legacy baseline per player/season/dungeon.
-4. Create an aggregate query/view that sums accepted death events and adjustments.
-5. Point existing repository reads at the new aggregate query while preserving their current JSON response shapes.
-6. Keep `PATCH /api/stats/batch` temporarily; translate an entered absolute total into adjustment deltas.
-7. Run old and new aggregate queries side by side in tests and verify exact parity.
-8. After parity and companion E2E are stable, retire `player_dungeon_stats` or keep it only as a materialized/cache table with one documented writer.
+1. Character slice (`characters.guid`) before ingest handlers.
+2. Add season `starts_at` / `ends_at` and `dungeons.challenge_map_id` in
+   `schema.sql` **and** the next numbered migration after the character slice
+   (testdb stays schema.sql-only).
+3. Import legacy baseline; keep public GET JSON shapes.
+4. Add `expectedRevision` on PATCH and editor reads; outbox handles
+   `stale_revision`.
+5. Enable companion ingest (increments event-derived counts).
+6. Correction route (ADR 001) after revision-protected aggregates exist.
 
-*Steps 1–8 are **Yeetcraft-side** work (Phase 3+).*
+*These steps are **Yeetcraft-side**. They are not implemented yet.*
 
 ---
 
@@ -898,16 +929,19 @@ The addon is deliberately **not** a dependency for the companion MVP. Consider i
 
 ## 15. Decisions to resolve
 
-| Decision | Recommended default | When to lock |
-| -------- | ------------------- | ------------ |
-| Aggregate authority | Events + adjustment ledger | Before DB migration |
-| Unknown death counting | Count as death until reviewed | Before ingest implementation |
-| Companion authentication | Dedicated revocable API key | Before E2E upload |
-| Retention | Keep structured local history; no raw upload | Before packaged release |
-| Player identity | GUID-first mapping to configured tracked identities | During Phase 0/1 |
-| Run ID recipe | Deterministic from available run signals | After Phase 0 |
-| Partial batch response | Per-event results in HTTP 200 envelope | During contract review |
-| Supported OS | Windows amd64 only for MVP | Now |
+Phase 1 locked the ingest wire and server-behavior ADRs. Remaining items are
+packaging or later-phase operations, not competing protocol.
+
+| Decision | Status |
+| -------- | ------ |
+| Aggregate authority | **Locked** — derived totals + immutable legacy baseline + one replaceable manual adjustment ([Yeetcraft ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md)) |
+| Unknown / new deaths | **Locked** — server default `category = death`; website owns `yeet` / `ignored` ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)) |
+| Companion authentication | **Locked** — `COMPANION_API_KEY`; fail-closed **503** `companion_api_unconfigured` |
+| Player identity | **Locked** — GUID-first; client-side tracked filter |
+| Run / event ID recipes | **Locked** — `CONTRACT.md`; season and `installationId` excluded |
+| Partial batch response | **Locked** — HTTP **200** with one ordered result per event; no 207; `needs_review` is not 409 |
+| Supported OS | **Locked** — Windows amd64 only for MVP |
+| Packaged retention UI | Later (Phase 6+). Contract already: no raw-log upload; structured local history until ack |
 
 ---
 
@@ -956,14 +990,14 @@ canonical v1 contract is reviewed.
 | `docs/COMBAT_LOG_CAPABILITIES.md` | Observed fields, visibility, accuracy, and unresolved gaps |
 | Test report | Per-run expected vs detected deaths and likely-cause accuracy |
 
-### 17.3 Phase 1 deliverables (next)
+### 17.3 Phase 1 deliverables (current milestone)
 
 | Deliverable | Contents |
 | ----------- | -------- |
-| Yeetcraft `contracts/companion/v1/` | Canonical versioned schemas/examples after review |
-| Decision record | Identity, idempotency, classification, auth, privacy, and reconciliation choices |
+| Yeetcraft `contracts/companion/v1/` | Canonical versioned schemas/examples — **reviewed, not implemented** |
+| Decision record | Identity, idempotency, classification, auth, privacy, and reconciliation — locked in `CONTRACT.md` + Yeetcraft ADRs 001/002 |
 | Repository file maps | [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) (companion Phase 2); Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) (Phase 3). Maps only — Phase 2/3 not implemented. |
-| Contract review evidence | Compatibility review against current API, frontend writes, and test guards |
+| Contract review evidence | Compatibility review against current API, frontend writes, and test guards — closed in §8.3 |
 
 ---
 
@@ -976,7 +1010,7 @@ canonical v1 contract is reviewed.
 | Dungeon identity | Instance/run markers | To measure | Name/game-ID mapping |
 | Key level | Run metadata | To measure | Optional/manual |
 | Run start/end | Log marker/state machine | To measure | Inactivity/manual close |
-| Yeet classification | Explicit user review; future heuristics may suggest | Manual authority | Default `death`; reclassify to `yeet` or `ignored` |
+| Yeet classification | Yeetcraft website (ADR 001); future heuristics may suggest | Website authority | Default `death` on ingest |
 | Coordinates | Likely addon-only | Not MVP | Omit |
 
 *Fill reliability columns during Phase 0; do not pre-fill with assumed values.*

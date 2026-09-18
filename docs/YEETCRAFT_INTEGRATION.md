@@ -7,7 +7,11 @@ Integration architecture and ownership between the [Yeetcraft](https://github.co
 | **Status** | Phase 1 Validate recorded checksums — no ingest API, SQLite, watcher, or upload client |
 | **Last updated** | 2026-09-18 |
 
-This document describes **how the two products relate**. It does not define an approved API contract, payload schema, or retry policy. For proposed designs, see [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
+This document describes **how the two products relate**. It is **not** a
+second API contract. The approved ingest wire spec is
+[`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md)
+(draft — reviewed, not implemented). For companion phasing, see
+[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
 
 ---
 
@@ -26,8 +30,8 @@ This document describes **how the two products relate**. It does not define an a
 **Planned (not implemented yet):**
 
 - Versioned companion ingestion HTTP endpoint (`POST /api/companion/v1/deaths/batch`)
-- JSON Schema, examples, and handler implementation (WP2/WP3, Phase 3)
-- Event-oriented tables, idempotent ingest, and aggregate reconciliation (Phase 3)
+- Handler, tables, and aggregate reconciliation (Phase 3) against the frozen
+  contract schemas (WP2/WP3 artifacts already in Yeetcraft)
 
 **WP1–WP5 reviewed (Markdown / JSON Schema only; API not implemented):**
 
@@ -89,9 +93,10 @@ tracking rules without corrupting the underlying event shape.
 | Untracked party member | Keep only anonymized context when required to understand a run | Never upload name, realm, GUID, or death statistic |
 
 An untracked party member must not be created automatically as a Yeetcraft
-player and must not contribute to Yeetcraft death totals. Final identity mapping
-between combat-log GUIDs and configured tracked characters remains an open
-design decision.
+player and must not contribute to Yeetcraft death totals. **WP1 locked:**
+GUID-first mapping to configured tracked identities; unmapped GUIDs are
+`unknown` / `needs_review`. Implementation is blocked on Yeetcraft
+`characters.guid`.
 
 ---
 
@@ -107,10 +112,18 @@ design decision.
 
 Contract changes may require **separate pull requests** in both repositories (schema in Yeetcraft, client and tests in companion). Coordinate version bumps explicitly.
 
-**Do not treat this file or companion docs as the contract.** For the proposed ingest endpoint shape, payload fields, and server-side data model, see:
+**Do not treat this file or companion docs as the contract.** Ingest wire,
+payloads, acknowledgement, and errors:
 
-- [IMPLEMENTATION_PLAN.md §5 — Versioned ingest API](./IMPLEMENTATION_PLAN.md#5-versioned-ingest-api) (**proposed, not approved**)
-- [IMPLEMENTATION_PLAN.md §4 — Core data model](./IMPLEMENTATION_PLAN.md#4-core-data-model) (**target design, not implemented**)
+- [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md)
+  (canonical; **reviewed, not implemented**)
+- Companion §5 is a pointer plus Phase 4 retry notes, not an alternate schema:
+  [IMPLEMENTATION_PLAN.md §5](./IMPLEMENTATION_PLAN.md#5-versioned-ingest-api)
+- Target Yeetcraft tables remain later-phase design:
+  [IMPLEMENTATION_PLAN.md §4](./IMPLEMENTATION_PLAN.md#4-core-data-model)
+  (**not implemented**; ingest semantics follow the contract and
+  [Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md) /
+  [ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md))
 
 During development, agents may read `../yeetcraft/contracts/companion/v1/` from a sibling checkout once it exists. The compiled companion must remain testable using local fixtures when the sibling repo is absent.
 
@@ -130,7 +143,7 @@ Facts observed in the Yeetcraft repository today:
 | Fail-closed | Empty/missing server `API_KEY` → **503** on mutations |
 | Browser unlock | `?token=` on page URLs → `localStorage` → `X-API-Key` on PATCH (not supported as query param on API routes) |
 | Data model | Aggregate tables: `players`, `seasons`, `dungeons`, `season_dungeons`, `player_dungeon_stats` |
-| Companion ingest | **Not present** — no `/api/companion/v1/*` route; WP1 contract Markdown only |
+| Companion ingest | **Not present** — no `/api/companion/v1/*` route; WP1–WP5 contract reviewed, not implemented |
 
 Source references (read-only): `../yeetcraft/docs/API.md`, `../yeetcraft/docs/ARCHITECTURE.md`, `../yeetcraft/backend/db/schema.sql`.
 
@@ -138,7 +151,10 @@ Source references (read-only): `../yeetcraft/docs/API.md`, `../yeetcraft/docs/AR
 
 ## Planned integration (not implemented)
 
-The implementation plan proposes a **separate versioned ingest endpoint** (e.g. batch death events) rather than reusing `PATCH /api/stats/batch` semantics. That endpoint, its auth model, and PostgreSQL event tables **do not exist yet** and are subject to contract review in Phase 1.
+The frozen contract specifies a **separate versioned ingest endpoint**
+(`POST /api/companion/v1/deaths/batch`) rather than reusing
+`PATCH /api/stats/batch`. That endpoint, companion auth middleware, and
+PostgreSQL event tables **do not exist yet** (Yeetcraft Phase 3).
 
 Until ingest is live:
 
@@ -216,38 +232,41 @@ app.
 
 **Requirement:** Event-derived companion uploads must **not silently double-count** data that was entered manually or migrated from legacy aggregates.
 
-The recommended reconciliation approach (events + adjustment ledger, legacy baseline import) is documented in the implementation plan — **not implemented**:
+**Canonical reconciliation** is Yeetcraft
+[ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md)
+(derived totals + immutable legacy baseline + one replaceable manual
+adjustment; `409 stale_revision`). Older target-design notes remain in the
+implementation plan and must not override the ADR:
 
 - [§11 — Manual edits, historic data, and aggregate consistency](./IMPLEMENTATION_PLAN.md#11-manual-edits-historic-data-and-aggregate-consistency)
 - [§11.1 — Compatibility strategy](./IMPLEMENTATION_PLAN.md#111-compatibility-strategy)
 
 Implementing that migration is **Yeetcraft-side work** in a later phase. The companion must not assume aggregates are purely event-derived until the server enforces that model.
 
-The accepted MVP classification rule is event-based: a detected real death
-starts as `death`, and a user may reclassify it to `yeet`, back to `death`, or
-to `ignored`. A correction moves one aggregate count atomically and must never
-increase total mistakes. Future detector suggestions cannot overwrite a
-confirmed manual choice.
+Website-owned classification (ADR 001): a detected real death starts as
+`death` on ingest; `yeet` / `ignored` are Yeetcraft website corrections, not
+companion wire. A correction moves one aggregate count atomically and must
+never increase total mistakes. Detector suggestions cannot overwrite a
+confirmed website classification.
 
 ---
 
 ## Open questions
 
-Unresolved until contract review and Phase 0 evidence:
+Phase 1 locked the ingest wire and ADRs. Do not treat the rows below as
+unresolved protocol. Combat-log unknowns stay in
+[COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md).
 
-| Topic | Question |
-| ----- | -------- |
-| API contract format | Markdown + JSON Schema draft 2020-12 + synthetic examples (WP1 Markdown done; schemas WP2/WP3) |
-| Authentication mechanism | **WP1 locked:** `COMPANION_API_KEY`; per-installation principals deferred |
-| Player and character identity | **WP1 locked:** GUID-first; client-side tracked filter; `resolved`/`unknown`; blocked on `characters.guid` |
-| Duplicate detection | **WP1 locked:** `batchId` in body; `clientRunId`/`clientEventId` SHA-256 recipes; replay vs conflict rules (WP3 codes) |
-| Manual-data migration | Baseline `stat_adjustments` vs recomputation from events |
-| Classification corrections | Versioned/idempotent representation of `death ↔ yeet` and `ignored` transitions |
-| Retention | Local normalized events vs raw log retention; server evidence storage policy |
-| Aggregate recomputation | Transactional delta vs async recompute; interaction with manual PATCH |
-| API version compatibility | Supported `schemaVersion` range; client behavior on 400/422 |
-
-Track combat-log unknowns separately in [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md).
+| Topic | Status |
+| ----- | ------ |
+| API contract format | **Locked** — Markdown + JSON Schema draft 2020-12 + synthetic examples in Yeetcraft `contracts/companion/v1/` |
+| Authentication | **Locked** — `COMPANION_API_KEY`; per-installation principals deferred |
+| Player and character identity | **Locked** — GUID-first; client-side tracked filter; `resolved`/`unknown`; blocked on `characters.guid` |
+| Duplicate detection | **Locked** — `batchId` in body; SHA-256 recipes; replay vs `batch_conflict` / `event_id_conflict` |
+| Manual-data migration | **Locked** in [ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md) (legacy baseline + replaceable adjustment). Not implemented. |
+| Classification corrections | **Locked** in [ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md). Website-owned; not companion wire. |
+| API version compatibility | **Locked** — path `v1` and `schemaVersion: 1` must agree; see `CONTRACT.md` retry guidance |
+| Packaged retention UI | Later. Contract already forbids raw-log upload. |
 
 ---
 
@@ -272,7 +291,13 @@ If a companion task requires Yeetcraft changes, stop and describe the cross-repo
 
 ## Related documentation
 
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased roadmap, proposed ingest API, data model
+- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased roadmap; §5 points at the canonical ingest contract
+- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — WP5 companion Phase 2 file map (not implemented)
+- [CONTRACT_V1_DERIVED_FIXTURES.md](./CONTRACT_V1_DERIVED_FIXTURES.md) — checksum / drift strategy
+- [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff
+- [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)
+- [AGENTS.md](../AGENTS.md) — agent boundaries and verification checklist
+- [README.md](../README.md) — companion purpose, build, and current status
 - [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — WP5 companion Phase 2 file map (not implemented)
 - [CONTRACT_V1_DERIVED_FIXTURES.md](./CONTRACT_V1_DERIVED_FIXTURES.md) — checksum / drift strategy
 - [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff

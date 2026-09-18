@@ -11,7 +11,7 @@ future **Nemesis Boss** support.
 | Last updated | 2026-09-18 |
 
 This document is not an API contract. The canonical companion contract lives in
-the Yeetcraft repository at `../yeetcraft/contracts/companion/v1/` (WP1 Markdown
+the Yeetcraft repository at `../yeetcraft/contracts/companion/v1/` (WP1–WP5
 reviewed, not implemented). Companion producer mapping:
 [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md).
 

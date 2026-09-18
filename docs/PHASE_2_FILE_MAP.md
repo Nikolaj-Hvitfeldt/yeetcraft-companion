@@ -44,7 +44,7 @@ Untracked names, realms, and GUIDs must not be prepared for later upload. Cause 
 | `dungeons.challenge_map_id`, `seasons.starts_at`/`ends_at` | Yeetcraft Phase 3 schema | Server resolution. Companion still sends challenge map ID and optional season hint. |
 | HTTP uploader | **Phase 4** (`internal/uploader`) | Not Phase 2 |
 | Review UI | **Phase 5** (`internal/review`) | Not Phase 2. Local hold-for-review **state** may live in `internal/storage` / `internal/session` in Phase 2. |
-| Wails / addon | Phase 6 / 8 | Not Phase 2 |
+| Wails / addon | Phase 6 / 8 | Not Phase 2. Phase 2 is **CLI-first / headless**. Desktop-shell timing is not an open decision. |
 
 Phase 2 exit is local: restart/truncation/rotation tests pass; events persist exactly once; IDs follow the canonical recipes; production tracking fails closed.
 

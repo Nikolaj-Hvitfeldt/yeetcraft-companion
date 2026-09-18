@@ -119,6 +119,8 @@ non-blocking.**
 - Phase 1 defines and reviews contracts only. **SQLite**, migrations, API
   implementation, uploads, **Wails**, and addon work remain deferred until
   their corresponding phases approve them.
+- Phase 2 is **CLI-first / headless** (`cmd/yeetcraft-companion`). Wails is
+  Phase 6. Do not treat desktop-shell timing as an open Phase 1/2 decision.
 
 ## Definition of done
 
@@ -134,8 +136,12 @@ Before marking a task complete:
 
 ## Open questions
 
-Resolve in docs or scoped tasks; do not guess in production code:
+Do not guess locked protocol in production code. Remaining items are evidence
+or packaging, not a second ingest spec:
 
-- Companion upload API schema is specified in `../yeetcraft/contracts/companion/v1/` (draft; API not implemented).
-- Combat-log events for deaths, yeets, dungeon, and party roster.
-- Desktop shell timing (CLI-first vs early Wails).
+- Canonical ingest contract: `../yeetcraft/contracts/companion/v1/` (draft —
+  reviewed, not implemented).
+- Combat-log evidence backlog (timestamp envelope, `UNIT_DIED` suffix,
+  abandonment): [`docs/COMBAT_LOG_CAPABILITIES.md`](docs/COMBAT_LOG_CAPABILITIES.md).
+  `yeet` / `ignored` are website post-ingest classifications, not combat-log
+  events.
