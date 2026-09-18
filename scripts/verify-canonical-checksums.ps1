@@ -64,8 +64,8 @@ foreach ($line in $lines) {
 function Get-HeadingSlugs([string]$MarkdownPath) {
     $counts = @{}
     $slugs = New-Object "System.Collections.Generic.HashSet[string]"
-    Get-Content -LiteralPath $MarkdownPath | ForEach-Object {
-        if ($_ -notmatch '^(#{1,6})\s+(.+)$') { return }
+    foreach ($line in Get-Content -LiteralPath $MarkdownPath) {
+        if ($line -notmatch '^(#{1,6})\s+(.+)$') { continue }
         $text = $Matches[2].Trim()
         $text = $text -replace '`', ''
         $text = $text -replace '\*\*', ''

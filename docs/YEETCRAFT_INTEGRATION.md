@@ -298,9 +298,3 @@ If a companion task requires Yeetcraft changes, stop and describe the cross-repo
 - [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)
 - [AGENTS.md](../AGENTS.md) — agent boundaries and verification checklist
 - [README.md](../README.md) — companion purpose, build, and current status
-- [PHASE_2_FILE_MAP.md](./PHASE_2_FILE_MAP.md) — WP5 companion Phase 2 file map (not implemented)
-- [CONTRACT_V1_DERIVED_FIXTURES.md](./CONTRACT_V1_DERIVED_FIXTURES.md) — checksum / drift strategy
-- [CHARACTER_AND_ENCOUNTER_HANDOFF.md](./CHARACTER_AND_ENCOUNTER_HANDOFF.md) — verified identity/encounter evidence and cross-repository handoff
-- [COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md) — combat-log research (Phase 0)
-- [AGENTS.md](../AGENTS.md) — agent boundaries and verification checklist
-- [README.md](../README.md) — companion purpose, build, and current status
