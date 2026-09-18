@@ -240,6 +240,92 @@ func TestScanReaderParsesTypedEventAcrossChunkBoundaries(t *testing.T) {
 	}
 }
 
+func TestScanReaderFromResumesPendingLineAndOffset(t *testing.T) {
+	first := "line1\npart"
+	second := "ial\nline3\n"
+
+	var firstTypes []string
+	summary, resume, err := ScanReaderFrom(strings.NewReader(first), 20, ResumeState{}, func(event Event) error {
+		firstTypes = append(firstTypes, event.EventType)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.LinesComplete != 1 || !summary.IncompleteTail || summary.BytesConsumed != 6 {
+		t.Fatalf("first summary = %#v", summary)
+	}
+	if resume.PendingLine != "part" || resume.ByteOffset != 6 || resume.LineNumber != 1 {
+		t.Fatalf("first resume = %#v", resume)
+	}
+
+	var secondTypes []string
+	summary, resume, err = ScanReaderFrom(strings.NewReader(second), 20, resume, func(event Event) error {
+		secondTypes = append(secondTypes, event.EventType)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.LinesComplete != 2 || summary.IncompleteTail || summary.BytesConsumed != 10 {
+		t.Fatalf("second summary = %#v", summary)
+	}
+	if resume.PendingLine != "" || resume.ByteOffset != 20 || resume.LineNumber != 3 {
+		t.Fatalf("second resume = %#v", resume)
+	}
+	if strings.Join(firstTypes, ",") != "line1" || strings.Join(secondTypes, ",") != "partial,line3" {
+		t.Fatalf("types first=%#v second=%#v", firstTypes, secondTypes)
+	}
+}
+
+func TestScanReaderFromBytesConsumedCountsTerminatorsOnlyForCompleteLines(t *testing.T) {
+	input := "a\r\nb\npartial"
+	summary, resume, err := ScanReaderFrom(strings.NewReader(input), 20, ResumeState{}, func(Event) error {
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.BytesConsumed != 5 || resume.PendingLine != "partial" || resume.ByteOffset != 5 {
+		t.Fatalf("summary=%#v resume=%#v", summary, resume)
+	}
+}
+
+func TestScanReaderFromRestartDoesNotDuplicateEvents(t *testing.T) {
+	input := "one\ntwo\nthree\n"
+	var firstTypes []string
+	resume, err := scanChunk(t, "one\ntw", ResumeState{}, &firstTypes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resume.PendingLine != "tw" || resume.ByteOffset != 4 {
+		t.Fatalf("resume after first chunk = %#v", resume)
+	}
+
+	var secondTypes []string
+	resume, err = scanChunk(t, "o\nthree\n", resume, &secondTypes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resume.PendingLine != "" || resume.ByteOffset != int64(len(input)) {
+		t.Fatalf("resume after second chunk = %#v", resume)
+	}
+
+	allTypes := append(firstTypes, secondTypes...)
+	if strings.Join(allTypes, ",") != "one,two,three" {
+		t.Fatalf("events = %#v", allTypes)
+	}
+}
+
+func scanChunk(t *testing.T, chunk string, resume ResumeState, types *[]string) (ResumeState, error) {
+	t.Helper()
+	_, next, err := ScanReaderFrom(strings.NewReader(chunk), 20, resume, func(event Event) error {
+		*types = append(*types, event.EventType)
+		return nil
+	})
+	return next, err
+}
+
 func TestScanReaderOversizedTypedLineIsTerminal(t *testing.T) {
 	input := "COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1\n" +
 		strings.Join(syntheticSpellDamage("SPELL_DAMAGE"), ",") + "\n"

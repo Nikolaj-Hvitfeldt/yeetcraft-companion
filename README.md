@@ -19,12 +19,15 @@ These are **separate products**:
 
 ## Current status
 
-**Phase 0 was accepted for MVP progression on 2026-09-18; Phase 1 contract
-review is current.** The repository contains a bounded
-streaming V22 parser, source-backed typed parsing for selected damage and
-metadata events, a Phase 0 **death-detection prototype** (`internal/detection`),
-fail-closed version/project quarantine, synthetic fixtures, and the privacy-safe
-`cmd/logprobe` diagnostic CLI (`--deaths` reports death candidates).
+**Phase 0 was accepted for MVP progression on 2026-09-18. Phase 1 contract
+review merged. Phase 2 headless capture foundation is implemented on
+`feat/phase-2/headless-capture` and ready for human review / PR to companion
+`dev`.** The repository contains a bounded streaming V22 parser, source-backed
+typed parsing for selected damage and metadata events, fail-closed tracked-character
+configuration, death detection with contract ID recipes, local SQLite persistence,
+combat-log tailing with restart/truncation/rotation handling, the headless
+`cmd/yeetcraft-companion` capture command, and the privacy-safe `cmd/logprobe`
+diagnostic CLI.
 
 Two reviewed local retail sessions cover five completed runs and 43 deaths
 (35 tracked, eight untracked), including boss/trash attribution, a failed pull,
@@ -34,12 +37,18 @@ website** reclassifies them as `yeet` or `ignored` (companion local review is
 not classification authority). Automatic yeet detection is
 not an MVP gate.
 
-The following are **not** implemented yet:
+**Implemented (Phase 2):**
 
-- File watching
-- Local SQLite storage
-- Upload to Yeetcraft
-- Review UI (including a future Wails-based desktop shell)
+- Fail-closed tracked-character config (`YEETCRAFT_TRACKED_GUIDS`, `WOW_LOG_TIMEZONE`)
+- Local SQLite storage with persist-once offsets
+- File watching / resume (`internal/logwatcher`)
+- Headless capture command (`cmd/yeetcraft-companion --log-file <path> [--once]`)
+
+**Not implemented yet:**
+
+- Upload to Yeetcraft (`internal/uploader`, Phase 4)
+- Review UI (`internal/review`, Phase 5)
+- Wails desktop shell (Phase 6)
 - WoW addon integration (deferred)
 
 Typed parsing is synthetically tested and partially validated against local
@@ -47,7 +56,7 @@ retail 12.1.0 logs kept under `local-data/` (gitignored). Use `logprobe --file
 <path> --deaths [--track-guid <Player-GUID>]` to inspect death candidates
 without uploading raw logs.
 
-See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the planned phases.
+See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for the phased roadmap and Phase 2 acceptance evidence.
 
 ## Prerequisites
 
@@ -59,14 +68,19 @@ From the repository root:
 
 ```bash
 go build -o bin/yeetcraft-companion ./cmd/yeetcraft-companion
-./bin/yeetcraft-companion
+export YEETCRAFT_TRACKED_GUIDS=Player-0001-00000001
+export WOW_LOG_TIMEZONE=America/New_York
+./bin/yeetcraft-companion --log-file /path/to/WoWCombatLog.txt
 ```
 
-Expected output:
+For a single poll (tests and debugging):
 
-```text
-yeetcraft-companion 0.0.0-dev
+```bash
+./bin/yeetcraft-companion --once --log-file /path/to/WoWCombatLog.txt --db-path ./data/companion.db
 ```
+
+Without `--log-file`, the command prints usage and exits non-zero. Production
+capture requires tracked GUID configuration and fails closed when it is missing.
 
 ## Test and lint
 

@@ -1,10 +1,10 @@
 # Companion Phase 2 implementation file map
 
-> **Status: Draft — file map only; Phase 2 is not done**
+> **Status: Phase 2 headless capture foundation implemented on `feat/phase-2/headless-capture` (WP 2.1–2.7). Ready for human review / PR to companion `dev`. Upload, review UI, and Wails remain deferred.**
 
 | Field | Value |
 | ----- | ----- |
-| Work package | WP5 |
+| Work package | WP5 map; implemented as WP 2.1–2.7 on one branch |
 | Owner | yeetcraft-companion |
 | Phase mapped here | **Phase 2** (headless capture foundation) |
 | Canonical contract | [`../yeetcraft/contracts/companion/v1/`](../../yeetcraft/contracts/companion/v1/README.md) (Yeetcraft-owned) |
@@ -18,20 +18,35 @@ WP1 producer gaps remain in [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVI
 
 ---
 
+## Phase 2 acceptance evidence (WP 2.7)
+
+Recorded in [`IMPLEMENTATION_PLAN.md` §8.4](./IMPLEMENTATION_PLAN.md#84-phase-2-headless-companion-foundation).
+
+| Check | Location |
+| ----- | -------- |
+| Missing tracked config exits non-zero; writes nothing | `cmd/yeetcraft-companion/main_test.go` |
+| Synthetic log → expected event count and contract IDs | `cmd/yeetcraft-companion/main_test.go` |
+| Restart mid-log → same IDs, no duplicates | `cmd/yeetcraft-companion/main_test.go` |
+| Truncation / rotation persist-once | `cmd/yeetcraft-companion/main_test.go`, `internal/logwatcher/watcher_test.go` |
+| Offset + events in one transaction; crash-before-ack | `internal/storage/storage_test.go` |
+| Fail-closed production config | `internal/config/config_test.go`, `cmd/yeetcraft-companion/main_test.go` |
+| Run state machine (abandon on close/timeout, never invent completion) | `internal/session/session_test.go` |
+| CI on Linux + Windows | `.github/workflows/go.yml` |
+
+---
+
 ## Locked production behavior (Phase 2)
 
 Production capture **fails closed** when tracked-character configuration is absent or corrupt.
 
-Verified today: [`internal/detection/tracker.go`](../internal/detection/tracker.go) `NewTracker()` with an empty GUID list sets `allPlayers = true` and records every player death. That prototype default is **not** acceptable for production capture (`cmd/yeetcraft-companion`).
+| Path | Production rule | Status |
+| ---- | --------------- | ------ |
+| `internal/config` | Missing, empty, or corrupt tracked GUID list → do not start capture | **Implemented** |
+| `cmd/yeetcraft-companion` | Fail closed; never fall back to track-all | **Implemented** |
+| `internal/detection` | Production callers must not use empty-list `allPlayers` | **Implemented** (`NewTracker` errors; `NewDiagnosticTracker` only for logprobe) |
+| `cmd/logprobe` | Diagnostic CLI only. Track-all remains an **explicit diagnostic** mode | **Implemented** (`--track-all-diagnostic`) |
 
-| Path | Production rule |
-| ---- | --------------- |
-| `internal/config` | Missing, empty, or corrupt tracked GUID list → do not start capture |
-| `cmd/yeetcraft-companion` | Fail closed; never fall back to track-all |
-| `internal/detection` | Production callers must not use empty-list `allPlayers` |
-| `cmd/logprobe` | Diagnostic CLI only. Track-all remains a **explicit diagnostic** mode, not the production default |
-
-Untracked names, realms, and GUIDs must not be prepared for later upload. Cause evidence must be redacted locally (no player names/realms/untracked GUIDs).
+Untracked names, realms, and GUIDs must not be prepared for later upload. Cause evidence is redacted locally before persistence.
 
 ---
 
@@ -40,11 +55,11 @@ Untracked names, realms, and GUIDs must not be prepared for later upload. Cause 
 | Dependency | Owner | Notes |
 | ---------- | ----- | ----- |
 | Frozen v1 wire contract | Yeetcraft | Read [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md). Do not fork it. |
-| Nullable unique `characters.guid` | Yeetcraft character slice | **End-to-end ingest** blocker. Phase 2 may persist local GUIDs and IDs without calling the server. |
+| Nullable unique `characters.guid` | Yeetcraft character slice | **End-to-end ingest** blocker. Phase 2 persists local GUIDs and IDs without calling the server. |
 | `dungeons.challenge_map_id`, `seasons.starts_at`/`ends_at` | Yeetcraft Phase 3 schema | Server resolution. Companion still sends challenge map ID and optional season hint. |
-| HTTP uploader | **Phase 4** (`internal/uploader`) | Not Phase 2 |
-| Review UI | **Phase 5** (`internal/review`) | Not Phase 2. Local hold-for-review **state** may live in `internal/storage` / `internal/session` in Phase 2. |
-| Wails / addon | Phase 6 / 8 | Not Phase 2. Phase 2 is **CLI-first / headless**. Desktop-shell timing is not an open decision. |
+| HTTP uploader | **Phase 4** (`internal/uploader`) | Not Phase 2 — stub only |
+| Review UI | **Phase 5** (`internal/review`) | Not Phase 2 — stub only. Local hold-for-review **state** lives in `internal/storage` / `internal/session`. |
+| Wails / addon | Phase 6 / 8 | Not Phase 2. Phase 2 is **CLI-first / headless**. |
 
 Phase 2 exit is local: restart/truncation/rotation tests pass; events persist exactly once; IDs follow the canonical recipes; production tracking fails closed.
 
@@ -52,73 +67,37 @@ Phase 2 exit is local: restart/truncation/rotation tests pass; events persist ex
 
 ## Phase 2 file map
 
-**Status:** `existing` = verified on disk now; `existing stub` = `doc.go` only; `to create` = not present.
+**Status:** `existing` = present and used in Phase 2 capture; `stub` = package comment only (deferred phase); `extend` = Phase 0 code extended in Phase 2.
 
-### Existing parser, detection, and logprobe (extend)
-
-| Path | Status | Role in Phase 2 |
-| ---- | ------ | --------------- |
-| `internal/parser/doc.go` | existing | Package docs. Parser stays roster-neutral. |
-| `internal/parser/envelope.go` | existing — extend | Feed canonical RFC 3339 UTC instants; timezone-less stamps need persisted WoW-log timezone from `internal/config`. DST/invalid stamps → local hold, not hash. |
-| `internal/parser/envelope_test.go` | existing — extend | Canonical-instant cases; synthetic only. |
-| `internal/parser/parse.go`, `scan.go`, `line_reader.go`, `event.go`, `payload.go`, `payload_parse.go`, `csv.go`, `hex.go`, `version.go`, `errors.go` | existing | Keep streaming V22 behavior; no upload, no SQLite. |
-| `internal/parser/*_test.go` | existing — extend | Malformed/unknown/partial-line regressions stay required. |
-| `internal/detection/doc.go` | existing | In-memory death candidates. |
-| `internal/detection/tracker.go` | existing — **behavior change** | Production must not treat empty GUID list as track-all. Capture `CHALLENGE_MODE_START` instant for `clientRunId`. Gate deaths outside an active run per contract (`run_context_incomplete` / local hold). |
-| `internal/detection/run.go` | existing — extend | Persistable run start instant, map ID, keystone level. |
-| `internal/detection/death.go` | existing — extend | Victim GUID, death instant, ordinal inputs; no `category` other than default death semantics. |
-| `internal/detection/damage.go` | existing — extend | Ranked causes; redact player-origin identity before any payload is stored for later upload. |
-| `internal/detection/tracker_test.go` | existing — extend | Fail-closed tracking, ordinals, run gating, redaction. |
-| `cmd/logprobe/main.go` | existing | Diagnostic entry. |
-| `cmd/logprobe/run.go` | existing — extend | Do not make track-all the undocumented default for “production-like” capture. |
-| `cmd/logprobe/deaths.go` | existing — extend | Stop printing unredacted `source_guid` / player identity in diagnostic paths that could become production logs. |
-| `cmd/logprobe/run_test.go` | existing — extend | Privacy and filter regressions. |
-| `testdata/logs/synthetic/` | existing — extend | Synthetic ID/ordinal/fail-closed/redaction slices. No real logs. |
-| `testdata/logs/synthetic/README.md` | existing — extend | Provenance; keep anonymized. |
-
-### Existing stubs to implement in Phase 2
-
-These packages exist as `doc.go` only. Phase 2 fills them. Adding a SQLite driver and filesystem watcher is **Phase 2-approved** when implementing these packages (not WP5).
+### Parser, detection, and logprobe
 
 | Path | Status | Role in Phase 2 |
 | ---- | ------ | --------------- |
-| `internal/config/doc.go` | existing stub | Package comment. |
-| `internal/config/config.go` | to create | Log path, persisted WoW-log timezone, tracked GUID list, installation diagnostics ID (not an ID-hash input, not a credential). **Fail closed** on absent/corrupt tracked configuration. |
-| `internal/config/config_test.go` | to create | Empty/corrupt/missing tracked list; timezone required for timezone-less stamps. |
-| `internal/logwatcher/doc.go` | existing stub | Package comment. |
-| `internal/logwatcher/watcher.go` | to create | Directory/file identity, append, rotation, truncation, restart resume. Offsets are authoritative; watch notifications are a hint. |
-| `internal/logwatcher/offset.go` | to create | Committed byte offset + incomplete trailing line, advanced only after persist. |
-| `internal/logwatcher/watcher_test.go` | to create | Append, restart, truncate, rotate (synthetic files). |
-| `internal/storage/doc.go` | existing stub | Package comment. Local SQLite is **not** a replica of Yeetcraft PostgreSQL. |
-| `internal/storage/sqlite.go` | to create | Open/migrate local DB. Schema direction is in [`IMPLEMENTATION_PLAN.md` §6.3](./IMPLEMENTATION_PLAN.md#63-local-sqlite-schema) (planned; implement in this package). |
-| `internal/storage/runs.go` | to create | Persist runs with `clientRunId` atomically with ID inputs. |
-| `internal/storage/events.go` | to create | Persist events with `clientEventId` and ordinal; reuse persisted IDs on partial scan; never invent ordinals without a complete prefix. |
-| `internal/storage/storage_test.go` | to create | Uniqueness, crash-before-ack, full rescan vs partial resume. |
-| `internal/session/doc.go` | existing stub | Package comment. |
-| `internal/session/session.go` | to create | Run state machine (idle/candidate/active/completing/completed/abandoned). |
-| `internal/session/ids.go` | to create | Canonical `clientRunId` / `clientEventId` recipes from [`CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) (UTF-8 NFC, length-prefixed SHA-256). Season and `installationId` excluded. |
-| `internal/session/ids_test.go` | to create | Hash vectors against frozen recipes; synthetic inputs only. Optionally compare derived fixtures — checksum strategy **deferred to Validate**. |
-| `cmd/yeetcraft-companion/main.go` | existing stub — extend | Headless capture wiring: config (fail closed) → watcher → parser → detection → session IDs → storage. No HTTP upload. |
+| `internal/parser/*` | existing — extend | Streaming V22 parser; canonical instants (`ResolveCanonicalInstant`); resumable `ScanReaderFrom`; `state_json.go` for SQLite resume |
+| `internal/detection/*` | existing — extend | Fail-closed tracking, run gating, ordinals, cause redaction, `RestoreRun` for restart |
+| `cmd/logprobe/*` | existing — extend | Diagnostic CLI; explicit `--track-all-diagnostic`; redacted death output |
 
-`.env.example` already mentions log dir, SQLite path, and a placeholder API key. Phase 2 may add tracked-GUID and timezone keys there; **do not** implement upload against `YEETCRAFT_API_KEY` in Phase 2. Never commit real keys or GUIDs.
+### Phase 2 capture packages (implemented)
 
-### Existing stubs explicitly **not** Phase 2
+| Path | Status | Role in Phase 2 |
+| ---- | ------ | --------------- |
+| `internal/config/config.go` | **implemented** | Tracked GUIDs, WoW-log timezone, installation diagnostics ID; fail closed |
+| `internal/logwatcher/*` | **implemented** | Offsets, identity, truncation, rotation, restart resume |
+| `internal/storage/*` | **implemented** | SQLite open/migrate, runs/events/causes/files/settings, atomic commit |
+| `internal/session/ids.go` | **implemented** | Contract `clientRunId` / `clientEventId` recipes |
+| `internal/session/session.go` | **implemented** | Run state machine: idle, candidate, active, completing, completed, abandoned |
+| `cmd/yeetcraft-companion/main.go` | **implemented** | Headless wiring: config → storage → logwatcher → parser → detection → session → storage |
+| `cmd/yeetcraft-companion/capture.go` | **implemented** | Capture loop, `--once` test mode, graceful abandon on interrupt |
+| `cmd/yeetcraft-companion/main_test.go` | **implemented** | End-to-end fail-closed, IDs, restart, truncation, rotation |
+
+### Explicitly **not** Phase 2 (stubs remain)
 
 | Path | Status | Phase | Role |
 | ---- | ------ | ----- | ---- |
-| `internal/uploader/doc.go` | existing stub — do not implement | **4** | Versioned HTTP client, `batchId`, retries, ack of ordered results. Reads canonical contract; must not become a schema editor. |
-| `internal/review/doc.go` | existing stub — do not implement | **5** | Operator review UI/flow. Website remains classification authority ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)). |
+| `internal/uploader/doc.go` | stub — do not implement | **4** | Versioned HTTP client, `batchId`, retries |
+| `internal/review/doc.go` | stub — do not implement | **5** | Operator review UI/flow |
 
-### Docs (Phase 2 may update; WP5 only maps them)
-
-| Path | Status | Role |
-| ---- | ------ | ---- |
-| `docs/IMPLEMENTATION_PLAN.md` | existing | Roadmap. WP5 checkbox records **this map**, not Phase 2 completion. |
-| `docs/CONTRACT_V1_WP1_REVIEW.md` | existing | Frozen producer review. |
-| `docs/YEETCRAFT_INTEGRATION.md` | existing | Integration boundaries. |
-| `docs/COMBAT_LOG_CAPABILITIES.md` | existing | Evidence; do not promote unverified capabilities. |
-| `README.md` | existing | Status; Phase 2 later marks watcher/SQLite as implemented only after they exist. |
-| `testdata/contract/v1/` | existing (checksum record) | [`CANONICAL_CHECKSUMS.sha256`](../testdata/contract/v1/CANONICAL_CHECKSUMS.sha256). Derived JSON copies remain Phase 2 tests; never independently edited. |
+`.env.example` documents tracked GUIDs, timezone, and optional paths. **Do not** implement upload against `YEETCRAFT_API_KEY` in Phase 2.
 
 ---
 
@@ -129,9 +108,7 @@ Recorded in Phase 1 Validate. Canonical checksum strategy:
 
 Relative-link and no-schema-fork checks: [`scripts/verify-canonical-checksums.ps1`](../scripts/verify-canonical-checksums.ps1).
 
-**Deferred to Phase 2/3 CI:** GitHub Actions; `go test` materializing derived JSON; requiring a Yeetcraft checkout in companion-only CI.
-
-Do not require `go test` / `go vet` for Validate unless Go files are edited.
+**Deferred to Phase 2/3 CI:** `go test` materializing derived JSON; requiring a Yeetcraft checkout in companion-only CI.
 
 ---
 
@@ -142,6 +119,5 @@ Do not require `go test` / `go vet` for Validate unless Go files are edited.
 | [`../yeetcraft/contracts/companion/v1/README.md`](../../yeetcraft/contracts/companion/v1/README.md) | Canonical contract ownership |
 | [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) | Normative recipes and payloads |
 | [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) | Yeetcraft Phase 3 file map |
-| [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md) | Current producers vs gaps |
-| [`CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md) | Derived-fixture checksum / drift strategy |
+| [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md) | Producer review (Phase 2 gaps closed where noted in §8.4) |
 | [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) | Phased roadmap |

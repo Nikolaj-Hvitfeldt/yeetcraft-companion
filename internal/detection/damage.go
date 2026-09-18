@@ -1,6 +1,7 @@
 package detection
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
@@ -143,6 +144,63 @@ func damageAmount(damage parser.DamageSuffix) int64 {
 	return damage.BaseAmount
 }
 
+func sourceTypeFromEventType(eventType string) (SourceType, bool) {
+	switch eventType {
+	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE":
+		return SourceTypeSpell, true
+	case "RANGE_DAMAGE":
+		return SourceTypeRange, true
+	case "SWING_DAMAGE":
+		return SourceTypeMelee, true
+	case "ENVIRONMENTAL_DAMAGE":
+		return SourceTypeEnvironmental, true
+	default:
+		return "", false
+	}
+}
+
+func extractCreatureID(sourceGUID string) (int64, bool) {
+	if !strings.HasPrefix(sourceGUID, "Creature-") {
+		return 0, false
+	}
+	parts := strings.Split(sourceGUID, "-")
+	if len(parts) < 6 {
+		return 0, false
+	}
+	id, ok := parseInt64(parts[5])
+	if !ok || id < 1 {
+		return 0, false
+	}
+	return id, true
+}
+
+func storableCauseFromHit(hit DamageHit) StorableCause {
+	sourceType, ok := sourceTypeFromEventType(hit.EventType)
+	if !ok {
+		sourceType = SourceTypeSpell
+	}
+
+	cause := StorableCause{
+		SourceType: sourceType,
+		Amount:     hit.Amount,
+		Overkill:   hit.Overkill,
+	}
+	if hit.EnvironmentalType != "" {
+		cause.EnvironmentalType = hit.EnvironmentalType
+	}
+	if isPlayerGUID(hit.SourceGUID) {
+		cause.PlayerOrigin = true
+	} else if id, ok := extractCreatureID(hit.SourceGUID); ok {
+		cause.CreatureID = id
+		cause.HasCreatureID = true
+	}
+	switch sourceType {
+	case SourceTypeSpell, SourceTypeRange:
+		cause.SpellID = hit.SpellID
+	}
+	return cause
+}
+
 func rankCauses(hits []DamageHit) []CauseCandidate {
 	if len(hits) == 0 {
 		return nil
@@ -157,7 +215,7 @@ func rankCauses(hits []DamageHit) []CauseCandidate {
 		seen[key] = struct{}{}
 		out = append(out, CauseCandidate{
 			Rank:       len(out) + 1,
-			Hit:        hit,
+			Cause:      storableCauseFromHit(hit),
 			Confidence: causeConfidence(hit, len(out) == 0),
 		})
 		if len(out) == 3 {
@@ -168,8 +226,8 @@ func rankCauses(hits []DamageHit) []CauseCandidate {
 }
 
 func causeKey(hit DamageHit) string {
-	if hit.SpellID != 0 || hit.SpellName != "" {
-		return hit.SourceGUID + "|" + hit.EventType + "|" + hit.SpellName
+	if hit.SpellID != 0 {
+		return hit.SourceGUID + "|" + hit.EventType + "|" + strconv.FormatInt(hit.SpellID, 10)
 	}
 	return hit.SourceGUID + "|" + hit.EventType + "|" + hit.EnvironmentalType
 }

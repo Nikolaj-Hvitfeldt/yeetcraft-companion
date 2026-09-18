@@ -110,17 +110,17 @@ docs/                      Plans and integration notes
 ## Phased work
 
 Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0
-was accepted for MVP progression on 2026-09-18. Phase 1 contract review is the
-current milestone; additional environmental and interruption evidence is
-non-blocking.**
+was accepted for MVP progression on 2026-09-18. Phase 1 contract review merged.
+Phase 2 headless capture foundation is implemented on `feat/phase-2/headless-capture`
+(WP 2.1–2.7) and ready for human review / PR to companion `dev`.**
 
-- Additional parser/detection evidence work requires an explicitly approved
-  scoped task and must not displace the current phase.
-- Phase 1 defines and reviews contracts only. **SQLite**, migrations, API
-  implementation, uploads, **Wails**, and addon work remain deferred until
-  their corresponding phases approve them.
-- Phase 2 is **CLI-first / headless** (`cmd/yeetcraft-companion`). Wails is
-  Phase 6. Do not treat desktop-shell timing as an open Phase 1/2 decision.
+- Phase 2 delivers CLI-first headless capture (`cmd/yeetcraft-companion`), SQLite
+  persistence, log watching, contract IDs, and fail-closed config. **No HTTP
+  upload, review UI, or Wails.**
+- Phase 3+ remain deferred per the implementation plan. Do not start Phase 3
+  Yeetcraft ingest or Phase 4 upload in companion-only tasks unless explicitly
+  scoped.
+- Wails is Phase 6. Do not treat desktop-shell timing as an open Phase 1/2 decision.
 
 ## Definition of done
 

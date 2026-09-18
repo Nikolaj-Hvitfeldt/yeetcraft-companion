@@ -1,42 +1,81 @@
 package detection
 
-import "github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"time"
+
+	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+)
+
+// ErrNoTrackedGUIDs is returned when NewTracker is called with an empty or nil GUID list.
+var ErrNoTrackedGUIDs = errors.New("tracked guids required")
+
+// ErrInvalidTrackedGUID is returned when a tracked GUID does not match the Player- prefix shape.
+var ErrInvalidTrackedGUID = errors.New("invalid tracked player guid")
+
+var playerGUIDPattern = regexp.MustCompile(`^Player-[0-9A-Za-z]+-[0-9A-Za-z]+$`)
+
+type ordinalKey struct {
+	victim       string
+	deathInstant string
+	runStart     string
+}
 
 // Tracker consumes parsed combat-log events and accumulates death candidates.
 type Tracker struct {
-	tracked    map[string]struct{}
-	allPlayers bool
+	tracked     map[string]struct{}
+	allPlayers  bool
+	logTimezone *time.Location
 
 	run       runTracker
 	encounter encounterTracker
 	buffers   map[string]*damageBuffer
+	ordinals  map[ordinalKey]int
 	deaths    []DeathCandidate
 }
 
-// NewTracker returns a tracker. When trackGUIDs is empty, every player GUID
-// death is recorded; otherwise only listed GUIDs match.
-func NewTracker(trackGUIDs ...string) *Tracker {
+// NewTracker returns a tracker that records deaths only for the listed player GUIDs.
+// An empty or nil list is an error; production capture must never default to track-all.
+// logTimezone resolves timezone-less envelope stamps; nil yields missing_log_timezone holds.
+func NewTracker(trackedGUIDs []string, logTimezone *time.Location) (*Tracker, error) {
+	if len(trackedGUIDs) == 0 {
+		return nil, ErrNoTrackedGUIDs
+	}
 	t := &Tracker{
-		buffers: make(map[string]*damageBuffer),
+		buffers:     make(map[string]*damageBuffer),
+		tracked:     make(map[string]struct{}, len(trackedGUIDs)),
+		ordinals:    make(map[ordinalKey]int),
+		logTimezone: logTimezone,
 	}
-	if len(trackGUIDs) == 0 {
-		t.allPlayers = true
-		return t
-	}
-	t.tracked = make(map[string]struct{}, len(trackGUIDs))
-	for _, guid := range trackGUIDs {
+	for _, guid := range trackedGUIDs {
 		if guid == "" {
-			continue
+			return nil, ErrNoTrackedGUIDs
+		}
+		if !playerGUIDPattern.MatchString(guid) {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidTrackedGUID, guid)
 		}
 		t.tracked[guid] = struct{}{}
 	}
-	return t
+	return t, nil
+}
+
+// NewDiagnosticTracker returns a tracker that records every player death.
+// It is the only supported path to track-all behavior and is intended for logprobe diagnostics.
+func NewDiagnosticTracker(logTimezone *time.Location) *Tracker {
+	return &Tracker{
+		allPlayers:  true,
+		buffers:     make(map[string]*damageBuffer),
+		ordinals:    make(map[ordinalKey]int),
+		logTimezone: logTimezone,
+	}
 }
 
 // Observe ingests one parsed event.
 func (t *Tracker) Observe(event parser.Event) error {
 	if event.Kind == parser.KindMetadata {
-		t.run.observe(event)
+		t.run.observe(event, t.logTimezone)
 		t.encounter.observe(event)
 		return nil
 	}
@@ -81,18 +120,46 @@ func (t *Tracker) observeDeath(event parser.Event) {
 	if !isPlayerGUID(victim) || !t.tracks(victim) {
 		return
 	}
-	var hits []DamageHit
-	if buf := t.buffers[victim]; buf != nil {
-		hits = buf.snapshotBefore(event.LineNumber)
+
+	deathRes := parser.ResolveCanonicalInstant(event.Envelope.Raw, t.logTimezone)
+	runCtx := t.run.context()
+
+	hold := DeathHoldNone
+	if !t.run.active || !t.run.hasCompleteStart() {
+		hold = DeathHoldRunContextIncomplete
 	}
-	t.deaths = append(t.deaths, DeathCandidate{
-		LineNumber: event.LineNumber,
-		Timestamp:  event.Envelope.Raw,
-		VictimGUID: victim,
-		Run:        t.run.context(),
-		Encounter:  t.encounter.context(),
-		Causes:     rankCauses(hits),
-	})
+
+	candidate := DeathCandidate{
+		LineNumber:       event.LineNumber,
+		Timestamp:        event.Envelope.Raw,
+		DeathInstant:     deathRes.Canonical,
+		DeathInstantHold: deathRes.HoldReason,
+		HoldReason:       hold,
+		VictimGUID:       victim,
+		Run:              runCtx,
+		Encounter:        t.encounter.context(),
+		Causes:           rankCauses(t.damageBeforeDeath(victim, event.LineNumber)),
+	}
+
+	if hold == DeathHoldNone && deathRes.HoldReason == "" && t.run.hasCompleteStart() {
+		key := ordinalKey{
+			victim:       victim,
+			deathInstant: deathRes.Canonical,
+			runStart:     t.run.startInstant,
+		}
+		candidate.Ordinal = t.ordinals[key]
+		candidate.OrdinalAssigned = true
+		t.ordinals[key] = candidate.Ordinal + 1
+	}
+
+	t.deaths = append(t.deaths, candidate)
+}
+
+func (t *Tracker) damageBeforeDeath(victim string, lineNumber int) []DamageHit {
+	if buf := t.buffers[victim]; buf != nil {
+		return buf.snapshotBefore(lineNumber)
+	}
+	return nil
 }
 
 func (t *Tracker) tracks(guid string) bool {

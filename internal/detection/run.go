@@ -1,33 +1,56 @@
 package detection
 
-import "github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+import (
+	"time"
+
+	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+)
 
 type runTracker struct {
-	active        bool
-	mapID         int64
-	keystoneLevel int64
-	dungeonName   string
+	active           bool
+	mapID            int64
+	keystoneLevel    int64
+	dungeonName      string
+	startInstant     string
+	startInstantHold parser.InstantHoldReason
+}
+
+// RestoreRun rehydrates active Mythic+ context after process restart.
+func (t *Tracker) RestoreRun(run RunContext) {
+	t.run.active = run.Active
+	t.run.mapID = run.MapID
+	t.run.keystoneLevel = run.KeystoneLevel
+	t.run.dungeonName = run.DungeonName
+	t.run.startInstant = run.StartInstant
+	t.run.startInstantHold = run.StartInstantHold
 }
 
 func (r *runTracker) context() RunContext {
 	return RunContext{
-		Active:        r.active,
-		MapID:         r.mapID,
-		KeystoneLevel: r.keystoneLevel,
-		DungeonName:   r.dungeonName,
+		Active:           r.active,
+		MapID:            r.mapID,
+		KeystoneLevel:    r.keystoneLevel,
+		DungeonName:      r.dungeonName,
+		StartInstant:     r.startInstant,
+		StartInstantHold: r.startInstantHold,
 	}
 }
 
-func (r *runTracker) observe(event parser.Event) {
+func (r *runTracker) hasCompleteStart() bool {
+	return r.startInstant != "" && r.startInstantHold == ""
+}
+
+func (r *runTracker) observe(event parser.Event, loc *time.Location) {
 	switch event.EventType {
 	case "CHALLENGE_MODE_START":
-		r.observeStart(event.Fields)
+		r.observeStart(event, loc)
 	case "CHALLENGE_MODE_END":
 		r.observeEnd(event)
 	}
 }
 
-func (r *runTracker) observeStart(fields []string) {
+func (r *runTracker) observeStart(event parser.Event, loc *time.Location) {
+	fields := event.Fields
 	if len(fields) < 5 {
 		return
 	}
@@ -39,10 +62,13 @@ func (r *runTracker) observeStart(fields []string) {
 	if !ok {
 		return
 	}
+	res := parser.ResolveCanonicalInstant(event.Envelope.Raw, loc)
 	r.active = true
 	r.mapID = mapID
 	r.dungeonName = fields[1]
 	r.keystoneLevel = keyLevel
+	r.startInstant = res.Canonical
+	r.startInstantHold = res.HoldReason
 }
 
 func (r *runTracker) observeEnd(event parser.Event) {

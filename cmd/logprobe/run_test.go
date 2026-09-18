@@ -296,14 +296,93 @@ func TestRunDeathReport(t *testing.T) {
 		"player_deaths: 1",
 		"death_1_victim_guid: Player-9999-00000004",
 		"death_1_encounter_id: 990001",
-		"death_1_cause_1_spell_name: Synthetic Collapse",
+		"death_1_cause_1_spell_id: 900003",
 		"death_1_cause_1_confidence: high",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("stdout = %q, want %q", out, want)
 		}
 	}
-	if strings.Contains(out, "TrackedDelta") || strings.Contains(out, "SyntheticRealm") {
-		t.Fatalf("stdout leaked victim name/realm: %q", out)
+	for _, forbidden := range []string{
+		"spell_name",
+		"encounter_name",
+		"source_guid",
+		"Synthetic Collapse",
+		"Synthetic Colossus",
+		"TrackedDelta",
+		"SyntheticRealm",
+	} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("stdout leaked %q: %q", forbidden, out)
+		}
+	}
+}
+
+func TestRunDeathsRequiresTrackingMode(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{
+		"--file", fixturePath("boss-context-death.txt"),
+		"--deaths",
+	}, &stdout, &stderr)
+	if exit != exitFailure {
+		t.Fatalf("exit = %d, want %d; stderr=%q", exit, exitFailure, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "Death detection requires --track-guid or --track-all-diagnostic") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+}
+
+func TestRunDeathReportDiagnosticTrackAll(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{
+		"--file", fixturePath("untracked-party-death.txt"),
+		"--deaths",
+		"--track-all-diagnostic",
+	}, &stdout, &stderr)
+	if exit != exitOK {
+		t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "player_deaths: 1") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRunDeathOutputNeverPrintsRedactedFields(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "tracked guid",
+			args: []string{
+				"--file", fixturePath("boss-context-death.txt"),
+				"--deaths",
+				"--track-guid", "Player-9999-00000004",
+			},
+		},
+		{
+			name: "diagnostic track all",
+			args: []string{
+				"--file", fixturePath("boss-context-death.txt"),
+				"--deaths",
+				"--track-all-diagnostic",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			exit := run(tt.args, &stdout, &stderr)
+			if exit != exitOK {
+				t.Fatalf("exit = %d; stderr=%q", exit, stderr.String())
+			}
+			output := stdout.String() + stderr.String()
+			for _, forbidden := range []string{"source_guid", "spell_name", "encounter_name"} {
+				if strings.Contains(output, forbidden) {
+					t.Fatalf("output contains redacted field %q: %q", forbidden, output)
+				}
+			}
+		})
 	}
 }

@@ -184,7 +184,7 @@ yeetcraft-companion/
 ├── AGENTS.md
 ├── docs/
 │   ├── IMPLEMENTATION_PLAN.md
-│   ├── PHASE_2_FILE_MAP.md    # WP5 map; Phase 2 not implemented
+│   ├── PHASE_2_FILE_MAP.md    # Phase 2 file map; capture foundation implemented on feat/phase-2/headless-capture
 │   ├── YEETCRAFT_INTEGRATION.md
 │   ├── COMBAT_LOG_FORMAT_V22.md
 │   └── COMBAT_LOG_CAPABILITIES.md
@@ -436,15 +436,23 @@ a website correction.
 ### 6.3 Local SQLite schema
 
 ```sql
-files(id, path, file_identity, byte_offset, partial_line, updated_at)
-runs(id, client_run_id UNIQUE, status, metadata_json, started_at, ended_at)
-events(id, client_event_id UNIQUE, run_id, player_guid, occurred_at,
-       category, confidence, payload_json, review_status)
-uploads(id, event_id UNIQUE, state, attempts, next_attempt_at,
-        last_error_code, last_error_message, acknowledged_at)
+files(id, path, file_identity, generation, byte_offset, partial_line,
+      parser_state_json, updated_at)
+runs(id, client_run_id UNIQUE, challenge_mode_start_instant, challenge_map_id,
+     keystone_level, status, metadata_json, started_at, ended_at)
+events(id, client_event_id UNIQUE, run_id, character_guid, death_instant,
+       ordinal, hold_reason, review_status, category, confidence,
+       payload_json, created_at)
+event_causes(id, event_id, rank, source_type, spell_id, creature_id,
+             environmental_type, amount, overkill, player_origin, confidence)
 settings(key PRIMARY KEY, value, updated_at)
 schema_migrations(version PRIMARY KEY, applied_at)
 ```
+
+Phase 2 implements `files`, `runs`, `events`, `event_causes`, `settings`, and
+`schema_migrations`. The `uploads` table is deferred to **Phase 4** (upload
+state machine and retry bookkeeping); local capture persistence does not depend
+on it.
 
 The parser and uploader communicate through persisted state, not only in-memory channels. A crash after event creation but before upload therefore loses nothing. A crash after server acceptance but before local acknowledgement produces a duplicate request that the server safely acknowledges.
 
@@ -758,9 +766,28 @@ upload implementation is required to complete Phase 1.
 
 ### 8.4 Phase 2 — Headless companion foundation
 
-**Status: not started.** File map only: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md).
+**Status: implemented on `feat/phase-2/headless-capture`; ready for human review / PR to companion `dev`.**
 
-Deliverables: Go command, migrations, `logwatcher`/`parser`/`session`/`storage` packages, fixture tests.
+Deliverables shipped: headless `cmd/yeetcraft-companion`, `internal/config`,
+`internal/logwatcher`, `internal/storage`, `internal/session` (IDs + run state
+machine), and wiring from fail-closed config through parser, detection, session
+IDs, and SQLite. No HTTP upload, review UI, or Wails shell.
+
+**Acceptance evidence (WP 2.7, 2026-09-18):**
+
+| Scenario | Evidence |
+| -------- | -------- |
+| Fail-closed config | `cmd/yeetcraft-companion/main_test.go` `TestMissingTrackedConfigExitsNonZeroAndWritesNothing` — exit code 2, no SQLite file created |
+| Synthetic log IDs | `TestSyntheticLogProducesExpectedEventCountAndIDs` — one persisted event with contract `clientRunId` / `clientEventId` |
+| Restart mid-log | `TestRestartMidLogSameIDsNoDuplicates` — resume from committed offset, identical IDs, no duplicate rows |
+| Truncation | `TestTruncationPersistOnce` — file shrink keeps one event; watcher generation reset covered in `internal/logwatcher/watcher_test.go` |
+| Rotation | `TestRotationPersistOnce` plus `TestWatcherRotateToNewFilename` / `TestWatcherReplaceSamePathStartsNewGeneration` |
+| Persist-once / crash-before-ack | `internal/storage/storage_test.go` `TestCrashBeforeAckRollbackAndReplay`, `TestOffsetDoesNotAdvanceWhenTransactionAborts` |
+| Process exit abandons run | `internal/session/session_test.go` `TestManagerCloseNeverCompletesActiveRun`; continuous mode calls `session.Close()` on SIGTERM/interrupt |
+| CI matrix | `.github/workflows/go.yml` runs `gofmt`, `go test ./...`, and `go vet ./...` on `ubuntu-latest` and `windows-latest` |
+
+**Not Phase 2 (still deferred):** `internal/uploader`, `internal/review`,
+`COMPANION_API_KEY`, HTTP ingest, Wails, addon.
 
 **Acceptance criteria:** Restart, truncation, and rotation tests pass; events persist exactly once locally.
 
