@@ -7,10 +7,11 @@ import "fmt"
 // An oversized line permanently fails the reader. Callers must create a new
 // LineReader; this phase deliberately does not attempt to resynchronize.
 type LineReader struct {
-	buf         []byte
-	maxContent  int
-	pendingCR   bool
-	terminalErr error
+	buf               []byte
+	maxContent        int
+	pendingCR         bool
+	terminalErr       error
+	completeLineBytes int64
 }
 
 func NewLineReader(maxContentBytes int) *LineReader {
@@ -32,6 +33,7 @@ func (r *LineReader) Write(chunk []byte) ([]string, error) {
 		if r.pendingCR {
 			if b == '\n' {
 				lines = append(lines, string(r.buf))
+				r.completeLine(len(r.buf), 2)
 				r.buf = r.buf[:0]
 				r.pendingCR = false
 				continue
@@ -47,6 +49,7 @@ func (r *LineReader) Write(chunk []byte) ([]string, error) {
 			r.pendingCR = true
 		case '\n':
 			lines = append(lines, string(r.buf))
+			r.completeLine(len(r.buf), 1)
 			r.buf = r.buf[:0]
 		default:
 			if err := r.appendContent(b); err != nil {
@@ -80,6 +83,16 @@ func (r *LineReader) Failed() bool {
 
 func (r *LineReader) BufferedContentLen() int {
 	return len(r.buf)
+}
+
+// CompleteLineBytes returns file bytes consumed for complete lines, including
+// line terminators but excluding buffered incomplete content.
+func (r *LineReader) CompleteLineBytes() int64 {
+	return r.completeLineBytes
+}
+
+func (r *LineReader) completeLine(contentBytes int, terminatorBytes int) {
+	r.completeLineBytes += int64(contentBytes + terminatorBytes)
 }
 
 func (r *LineReader) appendContent(b byte) error {
