@@ -14,6 +14,17 @@ Operational guide for AI coding assistants working in this repository.
 - **Git and Go commands** run from `yeetcraft-companion/`. Do not nest a Git repository inside Yeetcraft.
 - **Commits and pushes** only when the user explicitly requests them.
 
+## Branch workflow
+
+- `dev` is the integration and default development branch.
+- Create feature branches from the latest `dev` and target pull requests to
+  `dev`.
+- `main` is the stable/release branch. Promote reviewed changes with a pull
+  request from `dev` to `main`; do not develop directly on `main`.
+- Keep coordinated Yeetcraft work in separate branches, commits, and pull
+  requests in that repository.
+- CI must pass before merging into either protected branch.
+
 ## Contract ownership
 
 - The **canonical companion API contract** is owned by the Yeetcraft repository.

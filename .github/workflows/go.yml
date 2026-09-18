@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - main
-      - feat/phase-0-combat-log-poc
+      - dev
   pull_request:
     branches:
       - main
+      - dev
 
 permissions:
   contents: read
