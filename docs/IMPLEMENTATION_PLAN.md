@@ -436,15 +436,23 @@ a website correction.
 ### 6.3 Local SQLite schema
 
 ```sql
-files(id, path, file_identity, byte_offset, partial_line, updated_at)
-runs(id, client_run_id UNIQUE, status, metadata_json, started_at, ended_at)
-events(id, client_event_id UNIQUE, run_id, player_guid, occurred_at,
-       category, confidence, payload_json, review_status)
-uploads(id, event_id UNIQUE, state, attempts, next_attempt_at,
-        last_error_code, last_error_message, acknowledged_at)
+files(id, path, file_identity, generation, byte_offset, partial_line,
+      parser_state_json, updated_at)
+runs(id, client_run_id UNIQUE, challenge_mode_start_instant, challenge_map_id,
+     keystone_level, status, metadata_json, started_at, ended_at)
+events(id, client_event_id UNIQUE, run_id, character_guid, death_instant,
+       ordinal, hold_reason, review_status, category, confidence,
+       payload_json, created_at)
+event_causes(id, event_id, rank, source_type, spell_id, creature_id,
+             environmental_type, amount, overkill, player_origin, confidence)
 settings(key PRIMARY KEY, value, updated_at)
 schema_migrations(version PRIMARY KEY, applied_at)
 ```
+
+Phase 2 implements `files`, `runs`, `events`, `event_causes`, `settings`, and
+`schema_migrations`. The `uploads` table is deferred to **Phase 4** (upload
+state machine and retry bookkeeping); local capture persistence does not depend
+on it.
 
 The parser and uploader communicate through persisted state, not only in-memory channels. A crash after event creation but before upload therefore loses nothing. A crash after server acceptance but before local acknowledgement produces a duplicate request that the server safely acknowledges.
 
