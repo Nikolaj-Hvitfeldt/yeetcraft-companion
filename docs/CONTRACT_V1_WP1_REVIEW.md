@@ -4,7 +4,7 @@
 | ----- | ----- |
 | Status | Phase 1 review notes — not a contract |
 | Canonical spec | `../yeetcraft/contracts/companion/v1/` (Yeetcraft-owned) |
-| Work package | WP1 only |
+| Work package | WP1 + WP2 field mapping |
 | Last updated | 2026-09-18 |
 
 This document maps **WP1 normative decisions** from the Yeetcraft canonical
@@ -12,9 +12,10 @@ contract to **current companion code** (`internal/parser`, `internal/detection`,
 `cmd/logprobe`). It is evidence for Phase 1 review, not a second source of
 truth.
 
-Payload field names, request envelopes, and acknowledgement codes are
-**deferred to WP2/WP3**. Where a WP1 decision implies a future field, the
-mapping names the conceptual contract input and marks payload shape as deferred.
+WP1 normative decisions are frozen. **WP2** field names below map to the canonical
+request schema at
+[`../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json`](../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json).
+Acknowledgement codes remain **deferred to WP3**.
 
 ---
 
@@ -57,17 +58,18 @@ nullable unique `characters.guid` per
 
 ---
 
-## Field mapping — envelope and batch (WP1 semantics)
+## Field mapping — envelope and batch (WP2 wire names)
 
-| Contract concept | WP1 decision | Current producer | Status |
-| ---------------- | ------------ | ---------------- | ------ |
+| Contract field | WP2 type | Current producer | Status |
+| -------------- | -------- | ---------------- | ------ |
 | Endpoint | `POST /api/companion/v1/deaths/batch` | None | Not implemented |
 | Auth | `COMPANION_API_KEY`, fail-closed 503 | None | Not implemented |
-| `batchId` | UUID in JSON body; no `Idempotency-Key` header | None | Deferred to WP2 payload + Phase 4 uploader |
-| `schemaVersion` | Must agree with path `v1` | None | Deferred to WP2 |
-| `installationId` | Diagnostics only; excluded from ID hashes | None | Phase 2 gap |
-| Batch replay / `batch_conflict` | Server-side fingerprint | None | Phase 4 |
-| Per-event `duplicate` / `event_id_conflict` | `clientEventId` boundary | None | Phase 2 ID computation + Phase 4 |
+| `schemaVersion` | integer `1` | None | Phase 4 uploader |
+| `batchId` | UUID | None | Phase 4 uploader |
+| `installationId` | optional UUID | None | Phase 2 gap |
+| `events` | death event array | `Tracker.deaths` (in-memory only) | Phase 2 serialization |
+| Batch replay / `batch_conflict` | server fingerprint | None | Phase 4 |
+| Per-event `duplicate` / `event_id_conflict` | `clientEventId` boundary | None | Phase 2 IDs + Phase 4 |
 
 ---
 
@@ -145,37 +147,61 @@ keys, before `CHALLENGE_MODE_START`, or after completion retain
 `death_N_run_active: 0` in logprobe output while still emitting
 `victim_guid` and causes.
 
-Contract implication: Phase 2 must either attach deaths only to bounded runs,
-hold out-of-run deaths for review, or omit them from upload batches — **payload
-rules deferred to WP2**.
+Contract implication (WP2): deaths without a verifiable Mythic+ start context
+must not appear in upload batches (`run_context_incomplete`). Phase 2 must
+gate `observeDeath` output before serialization.
 
 ---
 
-## Field mapping — encounter context
+## Field mapping — death event (WP2 wire names)
 
-| Contract concept (WP2 payload) | Current producer | Status |
-| ------------------------------ | ---------------- | ------ |
-| Journal encounter ID | `EncounterContext.EncounterID` from typed `ENCOUNTER_START` | In-memory |
-| Encounter name (evidence) | `EncounterContext.EncounterName` | In-memory; redaction rules apply on upload |
-| Active encounter at death | `EncounterContext.Active` | Set true between START/END |
-| Trash death (`encounter` null) | `Encounter.Active == false` at death | Observed for trash deaths |
-| Stale encounter clearing | `ENCOUNTER_END` clears matching ID | Implemented in `encounterTracker` |
+| Contract field | WP2 type | Current producer | Status |
+| -------------- | -------- | ---------------- | ------ |
+| `clientEventId` | `sha256:` digest | Not computed | Phase 2 |
+| `characterGuid` | player GUID | `DeathCandidate.VictimGUID` when tracked | Producer exists |
+| `deathInstant` | canonical instant | `DeathCandidate.Timestamp` (raw envelope) | **Normalization gap** |
+| `ordinal` | integer ≥ 0 | Not computed | Phase 2 |
+| `category` | optional `"death"` | Not set | Omit on upload (server default) |
+| `run` | run object | See run table | Partial |
+| `encounter` | object or `null` | See encounter table | Partial |
+| `causes` | ranked-cause array | `DeathCandidate.Causes` | Needs redaction + mapping |
+
+## Field mapping — run object (`run`)
+
+| Contract field | WP2 type | Current producer | Status |
+| -------------- | -------- | ---------------- | ------ |
+| `clientRunId` | `sha256:` digest | Not computed | Phase 2 |
+| `challengeModeStartInstant` | canonical instant | Not captured at `CHALLENGE_MODE_START` | **Blocker** |
+| `challengeMapId` | integer | `RunContext.MapID` | In-memory |
+| `keystoneLevel` | integer | `RunContext.KeystoneLevel` | In-memory |
+| `seasonId` | optional UUID hint | Not produced | Phase 2 UI/config |
+
+## Field mapping — encounter (`encounter`)
+
+| Contract field | WP2 type | Current producer | Status |
+| -------------- | -------- | ---------------- | ------ |
+| `encounter` | `null` or object | `EncounterContext.Active` at death | Trash → `null` |
+| `encounter.encounterId` | integer ≥ 1 | `EncounterContext.EncounterID` | In-memory when active |
+| Encounter name on wire | **omitted** | `EncounterContext.EncounterName` | Must not upload |
+| Stale encounter clearing | N/A | `ENCOUNTER_END` clears matching ID | Implemented |
 
 ---
 
-## Field mapping — cause evidence and privacy
+## Field mapping — ranked cause (`causes[]`)
 
-| Contract concept | Current producer | Status |
-| ---------------- | ---------------- | ------ |
-| Ranked causes (max 3) | `rankCauses` stops at 3 unique keys | Aligned with planned limit |
-| Contiguous ranks starting at 1 | `len(out)+1` in loop | Aligned |
-| Spell ID / name | `DamageHit.SpellID`, `SpellName` from typed damage payloads | Available |
-| Amount / overkill | `DamageHit.Amount`, `Overkill` | Available |
-| Confidence | `causeConfidence` → high/medium/low | Detector evidence only; not classification authority |
-| Source kind / creature IDs | Partial — `EnvironmentalType`; creature GUID in `SourceGUID` | Needs normalized `sourceType` + game ID (WP2) |
-| Redact player/pet-owner GUIDs in causes | **Not redacted** — `SourceGUID` preserved | **Phase 2 gap** |
-| Redact player names in causes | **Not redacted** — `SourceName` preserved | **Phase 2 gap** |
-| Omit raw log lines | Parser only; no upload | Aligned |
+| Contract field | WP2 type | Current producer | Status |
+| -------------- | -------- | ---------------- | ------ |
+| `rank` | 1–3 | `CauseCandidate.Rank` | Aligned |
+| `sourceType` | `spell` \| `range` \| `melee` \| `environmental` | `DamageHit.EventType` | Phase 2 mapping |
+| `spellId` | conditional integer | `DamageHit.SpellID` | Available for spell/range |
+| `creatureId` | optional integer | Not extracted (GUID in `SourceGUID`) | Phase 2 template ID extraction |
+| `environmentalType` | conditional string | `DamageHit.EnvironmentalType` | Available for environmental |
+| `amount` | integer ≥ 0 | `DamageHit.Amount` | Available |
+| `overkill` | integer ≥ 0 | `DamageHit.Overkill` | Available |
+| `confidence` | high/medium/low | `causeConfidence` | Aligned; not classification authority |
+| Spell name on wire | **omitted** | `DamageHit.SpellName` | Must not upload |
+| Source GUID/name on wire | **forbidden** | `DamageHit.SourceGUID`, `SourceName` | **Phase 2 redaction** |
+| Omit raw log lines | N/A | Parser only | Aligned |
 
 ---
 
@@ -243,11 +269,17 @@ func (r *runTracker) observeStart(fields []string) {
 - [x] Cause redaction gap documented
 - [x] `characters.guid` sequencing blocker recorded (not implemented)
 
+## WP2 acceptance checklist
+
+- [x] Every WP2 request field mapped to a producer or explicit gap
+- [x] `sourceType` enum mapped from `DamageHit.EventType`
+- [x] Omitted wire fields documented (`encounterName`, spell names, source GUID/name)
+- [x] Run gating rule aligned with `run_context_incomplete`
+- [x] No companion-side schema copy; canonical checksum fixtures deferred to Phase 2/3
+
 ---
 
 ## Next step
 
-**WP2** — define run, encounter, death, ranked-cause payload fields and
-cross-field invariants, then create `ingest-batch-request.schema.json` and
-synthetic request examples in Yeetcraft `contracts/companion/v1/schema/` and
-`examples/`.
+**WP3** — acknowledgement semantics, response/error schemas, limits, retry
+taxonomy, and HTTP status mapping for request-side semantic codes.
