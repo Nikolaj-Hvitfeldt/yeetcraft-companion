@@ -4,7 +4,7 @@ Integration architecture and ownership between the [Yeetcraft](https://github.co
 
 | | |
 | --- | --- |
-| **Status** | Phase 1 contract review — no companion upload client or ingest API implemented |
+| **Status** | Phase 1 WP1 complete — canonical Markdown in Yeetcraft; no ingest API or upload client |
 | **Last updated** | 2026-09-18 |
 
 This document describes **how the two products relate**. It does not define an approved API contract, payload schema, or retry policy. For proposed designs, see [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
@@ -25,9 +25,14 @@ This document describes **how the two products relate**. It does not define an a
 
 **Planned (not implemented yet):**
 
-- Versioned companion ingestion HTTP endpoint
-- Canonical companion API contract at `./yeetcraft/contracts/companion/v1/`
-- Event-oriented schema, idempotent ingest, and aggregate reconciliation (see implementation plan)
+- Versioned companion ingestion HTTP endpoint (`POST /api/companion/v1/deaths/batch`)
+- JSON Schema, examples, and handler implementation (WP2/WP3, Phase 3)
+- Event-oriented tables, idempotent ingest, and aggregate reconciliation (Phase 3)
+
+**WP1 reviewed (Markdown only):**
+
+- Canonical contract at `../yeetcraft/contracts/companion/v1/` (`README.md`, `CONTRACT.md`)
+- Companion producer review at [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md)
 
 ### `./yeetcraft-companion` (this repository)
 
@@ -93,7 +98,7 @@ design decision.
 
 | Item | Owner | Location |
 | ---- | ----- | -------- |
-| Canonical companion API contract | **Yeetcraft** | `./yeetcraft/contracts/companion/v1/` (**planned — directory does not exist yet**) |
+| Canonical companion API contract | **Yeetcraft** | `../yeetcraft/contracts/companion/v1/` (WP1 Markdown; schemas deferred to WP2/WP3) |
 | Derived client fixtures / generated types | Companion (optional) | This repo only as copies; never an alternate source of truth |
 
 Contract changes may require **separate pull requests** in both repositories (schema in Yeetcraft, client and tests in companion). Coordinate version bumps explicitly.
@@ -121,7 +126,7 @@ Facts observed in the Yeetcraft repository today:
 | Fail-closed | Empty/missing server `API_KEY` → **503** on mutations |
 | Browser unlock | `?token=` on page URLs → `localStorage` → `X-API-Key` on PATCH (not supported as query param on API routes) |
 | Data model | Aggregate tables: `players`, `seasons`, `dungeons`, `season_dungeons`, `player_dungeon_stats` |
-| Companion ingest | **Not present** — no `/api/ingest/*` routes; no `contracts/companion/` tree |
+| Companion ingest | **Not present** — no `/api/companion/v1/*` route; WP1 contract Markdown only |
 
 Source references (read-only): `../yeetcraft/docs/API.md`, `../yeetcraft/docs/ARCHITECTURE.md`, `../yeetcraft/backend/db/schema.sql`.
 
@@ -186,16 +191,18 @@ The PWA uses a shared secret unlocked via browser `?token=` and sent as `X-API-K
 
 ### Expected direction (companion — not implemented)
 
-Architectural expectation: companion writes use **dedicated write credentials**, separate from the browser editing token, so they can be revoked independently.
+**WP1 locked:** companion ingest uses a separate server env var
+`COMPANION_API_KEY` and dedicated middleware. It does **not** reuse browser
+`API_KEY`. Missing/empty `COMPANION_API_KEY` fails closed with **503** on the
+companion route. Headers: `X-API-Key` or `Authorization: Bearer`.
 
-**Open design decisions (unresolved):**
+MVP uses one shared group key (leaked key can submit for any tracked GUID;
+rotation revokes all installations). Per-installation principals are deferred.
 
-- Credential provisioning (per-installation vs shared group key)
-- Rotation and revocation workflow
-- Whether credentials differ from today's single `API_KEY` or use per-client records
-- Storage mechanism (environment variable during headless dev; Windows Credential Manager with Wails later)
-
-The companion must **not** assume the browser `?token=` flow transfers unchanged to a desktop app. Header-based auth (`X-API-Key` or `Authorization: Bearer`) aligns with existing server middleware patterns, but the **companion-specific credential model awaits Phase 1 contract review**.
+Storage mechanism (environment variable during headless dev; Windows Credential
+Manager with Wails later) remains a Phase 2/6 packaging decision. The companion
+must **not** assume the browser `?token=` flow transfers unchanged to a desktop
+app.
 
 ---
 
@@ -226,10 +233,10 @@ Unresolved until contract review and Phase 0 evidence:
 
 | Topic | Question |
 | ----- | -------- |
-| API contract format | JSON schema, OpenAPI, or hand-maintained examples in `contracts/companion/v1/`? |
-| Authentication mechanism | Dedicated companion key vs extended `API_KEY`; per-client credentials |
-| Player and character identity | Exact GUID-first contract outcome for mapped, unknown, ambiguous, and untracked characters |
-| Duplicate detection | Client event IDs, batch idempotency keys, server `ON CONFLICT` behavior |
+| API contract format | Markdown + JSON Schema draft 2020-12 + synthetic examples (WP1 Markdown done; schemas WP2/WP3) |
+| Authentication mechanism | **WP1 locked:** `COMPANION_API_KEY`; per-installation principals deferred |
+| Player and character identity | **WP1 locked:** GUID-first; client-side tracked filter; `resolved`/`unknown`; blocked on `characters.guid` |
+| Duplicate detection | **WP1 locked:** `batchId` in body; `clientRunId`/`clientEventId` SHA-256 recipes; replay vs conflict rules (WP3 codes) |
 | Manual-data migration | Baseline `stat_adjustments` vs recomputation from events |
 | Classification corrections | Versioned/idempotent representation of `death ↔ yeet` and `ignored` transitions |
 | Retention | Local normalized events vs raw log retention; server evidence storage policy |

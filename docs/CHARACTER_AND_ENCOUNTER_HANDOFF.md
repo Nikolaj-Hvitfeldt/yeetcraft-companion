@@ -10,9 +10,10 @@ future **Nemesis Boss** support.
 | Owner of log parsing and local inference | `yeetcraft-companion` |
 | Last updated | 2026-09-18 |
 
-This document is not an API contract. The canonical companion contract remains
-planned for the Yeetcraft repository at `contracts/companion/v1/` and does not
-exist yet.
+This document is not an API contract. The canonical companion contract lives in
+the Yeetcraft repository at `../yeetcraft/contracts/companion/v1/` (WP1 Markdown
+reviewed, not implemented). Companion producer mapping:
+[`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md).
 
 ---
 
@@ -116,6 +117,11 @@ character table. Follow the approved phase scope in
 The website may introduce nullable unique character GUIDs now, but companion
 configuration and private server population remain separate later tasks.
 
+**WP1 sequencing blocker:** v1 ingest is blocked until Yeetcraft implements
+nullable unique `characters.guid` per
+[`../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md`](../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md).
+This is recorded in the canonical contract; it is **not implemented** yet.
+
 ---
 
 ## Manual classification authority
@@ -141,12 +147,12 @@ The eventual canonical Yeetcraft-owned contract should resolve or represent:
 
 ### Event identity
 
-- schema version;
-- client installation ID;
-- deterministic batch ID;
-- deterministic run ID;
-- deterministic death event ID;
-- occurrence timestamp.
+- schema version (WP2);
+- client installation ID (diagnostics only; excluded from ID hashes — WP1);
+- deterministic batch ID (`batchId` UUID in body — WP1);
+- deterministic run ID (`clientRunId` recipe — WP1);
+- deterministic death event ID (`clientEventId` recipe — WP1);
+- occurrence timestamp (canonical RFC 3339 UTC — **Phase 2 gap**; see WP1 review).
 
 ### Character identity
 
@@ -255,6 +261,7 @@ character metadata task unless the user explicitly adds companion scope.
 
 ### In this repository
 
+- [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md)
 - [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)
 - [`COMBAT_LOG_CAPABILITIES.md`](./COMBAT_LOG_CAPABILITIES.md)
 - [`YEETCRAFT_INTEGRATION.md`](./YEETCRAFT_INTEGRATION.md)

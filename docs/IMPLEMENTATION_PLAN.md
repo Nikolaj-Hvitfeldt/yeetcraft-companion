@@ -295,38 +295,63 @@ classification takes precedence over later detector reprocessing.
 
 ### 4.5 Stable IDs
 
-Do not base identity only on player name, log line number, or a random UUID generated each time a file is reread. A restart, file copy, or retry would create duplicates.
+Do not base identity only on player name, log line number, or a random UUID
+generated each time a file is reread. A restart, file copy, or retry would
+create duplicates.
+
+**WP1 locked recipe** (canonical spec:
+`../yeetcraft/contracts/companion/v1/CONTRACT.md`):
 
 ```text
-client_run_id =
-  SHA-256(client_installation_id | log_file_identity | run_start_timestamp |
-          instance_identifier | sorted_party_guids)
+clientRunId = SHA-256(
+  domainTag=yeetcraft-run-v1,
+  challengeModeStartInstant,   # RFC 3339 UTC; season deliberately excluded
+  challengeMapId,
+  keystoneLevel
+)
 
-client_event_id =
-  SHA-256(client_run_id | player_guid | death_timestamp |
-          normalized_event_type | sequence_disambiguator)
+clientEventId = SHA-256(
+  domainTag=yeetcraft-death-v1,
+  clientRunId,
+  victimGuid,
+  deathInstant,                # RFC 3339 UTC
+  ordinal                      # zero-based among same-instant UNIT_DIED for victim
+)
 ```
 
-Phase 1 finalizes the exact run recipe from Phase 0's available metadata.
-Persist generated IDs in SQLite immediately once Phase 2 storage exists. The
-server's UNIQUE constraints are the final deduplication boundary.
+`installationId`, log-file identity, party GUIDs, and season are **excluded**
+from ID hashes. Hash inputs use UTF-8 NFC strings with 32-bit big-endian
+length prefixes per field. Output format: `sha256:` + 64 lowercase hex digits.
+
+Companion producer gaps for Phase 2 are recorded in
+[`docs/CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md). Persist
+generated IDs in SQLite once Phase 2 storage exists. Server UNIQUE constraints
+are the final deduplication boundary.
 
 ---
 
 ## 5. Versioned ingest API
 
-*Endpoint and schema below are **planned** in this document. They are not implemented in Yeetcraft until Phase 3. Do not treat them as verified existing routes.*
+*Endpoint and schema below are **planned**. WP1 normative decisions live in the
+Yeetcraft canonical contract; payload shapes and acknowledgement codes remain
+WP2/WP3. The route is not implemented until Phase 3.*
 
 ### 5.1 Endpoint
 
 ```http
-POST /api/ingest/v1/deaths/batch
-X-API-Key: <companion credential>
+POST /api/companion/v1/deaths/batch
+X-API-Key: <COMPANION_API_KEY>
 Content-Type: application/json
-Idempotency-Key: <batch id>
 ```
 
-Using a dedicated endpoint avoids forcing event semantics into `PATCH /api/stats/batch`. Manual aggregate edits and automatic event ingestion have different validation, deduplication, and audit requirements.
+- `batchId` is a **UUID in the JSON body**; there is no `Idempotency-Key`
+  header in v1.
+- `COMPANION_API_KEY` is a **separate** server env var and middleware instance
+  from browser `API_KEY`; missing key fails closed with **503** on this route.
+
+Using a dedicated endpoint avoids forcing event semantics into
+`PATCH /api/stats/batch`. Manual aggregate edits and automatic event ingestion
+have different validation, deduplication, and audit requirements.
 
 ### 5.2 Request shape
 
@@ -677,14 +702,17 @@ commits per repository**
 
 Deliverables:
 
-- [ ] Confirm the canonical contract format and create versioned examples/schema
-  at `contracts/companion/v1/` in Yeetcraft
+- [x] WP1: canonical Markdown skeleton at `../yeetcraft/contracts/companion/v1/`
+  (`README.md`, `CONTRACT.md`) — reviewed, not implemented
+- [x] WP1: companion producer review at
+  [`docs/CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md)
+- [ ] WP2: run, encounter, death, ranked cause payloads; request schema and
+  synthetic examples
+- [ ] WP3: acknowledgement semantics, limits, validation errors, response schemas
 - [ ] Define GUID-first character resolution and explicit
-  tracked/untracked/unknown outcomes
-- [ ] Define run, encounter, death, ranked cause, and manual classification
-  payloads without uploading raw logs
-- [ ] Define deterministic run/event IDs, batch idempotency, retry-safe
-  acknowledgement, limits, and validation errors
+  tracked/untracked/unknown outcomes (WP1 locked; WP2 wire fields)
+- [ ] Define deterministic run/event IDs, batch idempotency (WP1 locked), retry-safe
+  acknowledgement (WP3)
 - [ ] Define `death ↔ yeet` and `ignored` correction transitions so total
   mistakes remain invariant
 - [ ] Decide companion-specific authentication and credential boundaries
