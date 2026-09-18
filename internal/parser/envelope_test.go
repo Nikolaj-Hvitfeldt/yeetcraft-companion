@@ -1,6 +1,13 @@
 package parser
 
-import "testing"
+import (
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	_ "time/tzdata"
+)
 
 func TestSplitEnvelopePrecedence(t *testing.T) {
 	tests := []struct {
@@ -159,4 +166,192 @@ func TestTryParseEnvelopeTimestampTimezoneOffsets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResolveCanonicalInstant(t *testing.T) {
+	utc := time.UTC
+	newYork, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("LoadLocation(America/New_York): %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		raw       string
+		loc       *time.Location
+		wantCanon string
+		wantHold  InstantHoldReason
+	}{
+		{
+			name:      "offset-bearing with colon offset",
+			raw:       "1/15/2026 20:00:01.0000+02:00",
+			wantCanon: "2026-01-15T18:00:01.000000000Z",
+		},
+		{
+			name:      "offset-bearing without colon offset",
+			raw:       "1/15/2026 20:00:01.0000-0500",
+			wantCanon: "2026-01-16T01:00:01.000000000Z",
+		},
+		{
+			name:      "offset-bearing hour-only offset",
+			raw:       "1/15/2026 20:00:01.0000+07",
+			wantCanon: "2026-01-15T13:00:01.000000000Z",
+		},
+		{
+			name:      "timezone-less with UTC location",
+			raw:       "1/15/2026 20:00:01.123",
+			loc:       utc,
+			wantCanon: "2026-01-15T20:00:01.123000000Z",
+		},
+		{
+			name:     "timezone-less without location",
+			raw:      "1/15/2026 20:00:01.0000",
+			wantHold: InstantHoldMissingLogTimezone,
+		},
+		{
+			name:     "spring-forward nonexistent local time",
+			raw:      "3/9/2025 2:30:00.0",
+			loc:      newYork,
+			wantHold: InstantHoldDstAmbiguous,
+		},
+		{
+			name:     "fall-back ambiguous local time",
+			raw:      "11/2/2025 1:30:00.0",
+			loc:      newYork,
+			wantHold: InstantHoldDstAmbiguous,
+		},
+		{
+			name:     "invalid calendar date",
+			raw:      "2/31/2026 12:00:00.0",
+			loc:      utc,
+			wantHold: InstantHoldInvalidInstant,
+		},
+		{
+			name:     "invalid offset-bearing stamp",
+			raw:      "1/15/2026 20:00:01.0000+24:00",
+			wantHold: InstantHoldInvalidInstant,
+		},
+		{
+			name:      "one-digit fractional padding",
+			raw:       "1/15/2026 20:00:01.1+02:00",
+			wantCanon: "2026-01-15T18:00:01.100000000Z",
+		},
+		{
+			name:      "three-digit fractional padding",
+			raw:       "1/15/2026 20:00:01.123+02:00",
+			wantCanon: "2026-01-15T18:00:01.123000000Z",
+		},
+		{
+			name:      "six-digit fractional padding",
+			raw:       "1/15/2026 20:00:01.123456+02:00",
+			wantCanon: "2026-01-15T18:00:01.123456000Z",
+		},
+		{
+			name:      "nine-digit fractional preserved",
+			raw:       "1/15/2026 20:00:01.123456789+02:00",
+			wantCanon: "2026-01-15T18:00:01.123456789Z",
+		},
+		{
+			name:     "empty stamp",
+			raw:      "",
+			wantHold: InstantHoldInvalidInstant,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveCanonicalInstant(tt.raw, tt.loc)
+			if got.HoldReason != tt.wantHold {
+				t.Fatalf("HoldReason = %q, want %q (canonical=%q)", got.HoldReason, tt.wantHold, got.Canonical)
+			}
+			if got.Canonical != tt.wantCanon {
+				t.Fatalf("Canonical = %q, want %q", got.Canonical, tt.wantCanon)
+			}
+			if tt.wantCanon != "" {
+				if !strings.HasSuffix(got.Canonical, "Z") {
+					t.Fatalf("canonical instant must end with Z: %q", got.Canonical)
+				}
+				if len(got.Canonical) != len("2026-01-15T18:00:01.123456789Z") {
+					t.Fatalf("canonical instant length = %d, want fixed RFC3339 nanosecond form", len(got.Canonical))
+				}
+				if _, err := time.Parse("2006-01-02T15:04:05.000000000Z", got.Canonical); err != nil {
+					t.Fatalf("canonical instant is not parseable: %v", err)
+				}
+			}
+			if tt.wantHold == InstantHoldNone && got.Canonical == "" {
+				t.Fatal("expected canonical instant without hold reason")
+			}
+			if tt.wantHold != InstantHoldNone && got.Canonical != "" {
+				t.Fatalf("hold reason %q must not produce canonical instant %q", got.HoldReason, got.Canonical)
+			}
+		})
+	}
+}
+
+func TestResolveCanonicalInstantSyntheticFixtures(t *testing.T) {
+	utc := time.UTC
+	newYork, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("LoadLocation(America/New_York): %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		fixture   string
+		loc       *time.Location
+		wantCanon string
+		wantHold  InstantHoldReason
+	}{
+		{
+			name:      "timezone-less fixture with UTC",
+			fixture:   "../../testdata/logs/synthetic/timestamp-timezone-less.txt",
+			loc:       utc,
+			wantCanon: "2026-01-15T20:16:00.000000000Z",
+		},
+		{
+			name:     "timezone-less fixture without location",
+			fixture:  "../../testdata/logs/synthetic/timestamp-timezone-less.txt",
+			wantHold: InstantHoldMissingLogTimezone,
+		},
+		{
+			name:     "dst ambiguous fixture",
+			fixture:  "../../testdata/logs/synthetic/timestamp-dst-ambiguous.txt",
+			loc:      newYork,
+			wantHold: InstantHoldDstAmbiguous,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := fixtureEnvelopeTimestamp(t, tt.fixture)
+			got := ResolveCanonicalInstant(raw, tt.loc)
+			if got.HoldReason != tt.wantHold {
+				t.Fatalf("HoldReason = %q, want %q (canonical=%q)", got.HoldReason, tt.wantHold, got.Canonical)
+			}
+			if got.Canonical != tt.wantCanon {
+				t.Fatalf("Canonical = %q, want %q", got.Canonical, tt.wantCanon)
+			}
+		})
+	}
+}
+
+func fixtureEnvelopeTimestamp(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", path, err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.HasPrefix(line, "COMBAT_LOG_VERSION,") || line == "" {
+			continue
+		}
+		split := SplitEnvelope(line)
+		if split.Envelope.Raw == "" {
+			t.Fatalf("fixture %s has no envelope timestamp", path)
+		}
+		return split.Envelope.Raw
+	}
+	t.Fatalf("fixture %s has no timestamped line", path)
+	return ""
 }

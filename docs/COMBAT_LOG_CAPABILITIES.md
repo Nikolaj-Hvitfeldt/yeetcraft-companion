@@ -5,7 +5,7 @@ Phase 0 capability matrix and evidence log for the Yeetcraft companion.
 |                  |                                                                                |
 | ---------------- | ------------------------------------------------------------------------------ |
 | **Phase**        | Phase 0 accepted for MVP progression; residual evidence collection continues   |
-| **Last updated** | 2026-09-18                                                                     |
+| **Last updated** | 2026-09-18 (WP 2.3 canonical instant resolution)                               |
 | **Fixtures**     | Original synthetic corpus ([provenance](../testdata/logs/synthetic/README.md)) |
 
 Yeetcraft tracks **deaths** and **yeets** per player per dungeon per season. The companion must derive that information from local combat-log files written by the WoW client on **one** logging PC. This document records what the log can support — not what the product wishes were true.
@@ -127,6 +127,7 @@ verified with a real log in this phase.
 | Version-boundary quarantine        | Synthetically tested | [`version-v22-then-unsupported.txt`](../testdata/logs/synthetic/version-v22-then-unsupported.txt), [`version-v22-then-malformed.txt`](../testdata/logs/synthetic/version-v22-then-malformed.txt) | Unsupported, malformed, and non-retail boundaries fail closed; later V22 does not recover |
 | Retail project validation          | Synthetically tested | [`version-project-id-2.txt`](../testdata/logs/synthetic/version-project-id-2.txt), [`version-project-id-non-integer.txt`](../testdata/logs/synthetic/version-project-id-non-integer.txt)         | Only documented retail `PROJECT_ID,1` activates V22                                       |
 | Provisional signed-offset envelope | Synthetically tested | [`timestamp-signed-offset.txt`](../testdata/logs/synthetic/timestamp-signed-offset.txt)                                                                                                          | Shape matching only; not verified against a real 12.0+ log                                |
+| Canonical instant resolution       | Synthetically tested | [`timestamp-timezone-less.txt`](../testdata/logs/synthetic/timestamp-timezone-less.txt), [`timestamp-dst-ambiguous.txt`](../testdata/logs/synthetic/timestamp-dst-ambiguous.txt), `internal/parser/envelope_test.go` | Offset-bearing stamps convert to UTC; timezone-less stamps require configured log timezone; DST-ambiguous or nonexistent local times hold locally; retail envelope shape not verified |
 | Malformed category reporting       | Synthetically tested | CLI tests for CSV, version-header, and common-header counts                                                                                                                                      | Diagnostics expose counts only, never record contents                                     |
 
 ### Typed payload parsing (limited Phase 0B.2)
@@ -263,10 +264,9 @@ The following remain open but do not block Phase 1:
 - lethal environmental and knockback/void evidence for automatic suggestions;
 - exact unresolved V22 suffix/unknown-field semantics;
 - retail 12.0+ timestamp envelope confirmation (timezone-less vs
-  offset-bearing; DST). Companion v1 already fails closed until a persisted
-  WoW-log timezone can interpret timezone-less stamps; do not invent a new
-  wire timestamp format. This is a scoped evidence / Phase 2 parser task, not
-  a Phase 1 contract open question.
+  offset-bearing; DST). Phase 2 WP 2.3 implements fail-closed canonical
+  instant resolution with local hold reasons; confirming the real retail
+  envelope shape remains evidence backlog, not a passing real-log verification.
 
 Shape-incomplete death scenarios must not be promoted to passing success
 fixtures.
