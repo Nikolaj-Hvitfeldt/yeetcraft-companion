@@ -228,7 +228,7 @@ projects/
 - During development, companion contract tests may read `../yeetcraft/contracts/companion/v1/` from the sibling checkout.
 - The compiled companion supports an explicit schema version and must also be testable **without** the sibling repository by using its own **derived** request fixtures.
 - **Do not maintain two independently edited canonical schemas.** Generated code or fixtures in this repository are derived copies, not source of truth.
-- Phase 2/3 paths: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) and Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
+- Phase 2/3 paths: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) and Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
 
 ---
 
@@ -708,22 +708,24 @@ Deliverables:
   (`README.md`, `CONTRACT.md`) — reviewed, not implemented
 - [x] WP1: companion producer review at
   [`docs/CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md)
-- [ ] WP2: run, encounter, death, ranked cause payloads; request schema and
-  synthetic examples
-- [ ] WP3: acknowledgement semantics, limits, validation errors, response schemas
-- [ ] Define GUID-first character resolution and explicit
+- [x] WP2: run, encounter, death, ranked cause payloads; request schema and
+  synthetic examples (canonical in Yeetcraft)
+- [x] WP3: acknowledgement semantics, limits, validation errors, response schemas
+- [x] Define GUID-first character resolution and explicit
   tracked/untracked/unknown outcomes (WP1 locked; WP2 wire fields)
-- [ ] Define deterministic run/event IDs, batch idempotency (WP1 locked), retry-safe
+- [x] Define deterministic run/event IDs, batch idempotency (WP1 locked), retry-safe
   acknowledgement (WP3)
-- [ ] Define `death ↔ yeet` and `ignored` correction transitions so total
-  mistakes remain invariant
-- [ ] Decide companion-specific authentication and credential boundaries
-- [ ] Define reconciliation with existing manual aggregate statistics
-- [ ] Record approved decisions in this plan or focused ADRs if the decision
+- [x] Define `death ↔ yeet` and `ignored` correction transitions so total
+  mistakes remain invariant (Yeetcraft ADR 001)
+- [x] Decide companion-specific authentication and credential boundaries
+- [x] Define reconciliation with existing manual aggregate statistics (Yeetcraft ADR 002)
+- [x] Record approved decisions in this plan or focused ADRs if the decision
   history becomes too large
 - [x] Produce an exact, repository-separated Phase 2/3 file change map
   ([`docs/PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md); Yeetcraft
-  [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md))
+  [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md))
+- [x] Validate schemas/examples, error fixtures, relative links, and canonical checksum recording
+  ([`docs/CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md))
 - [ ] Review the contract against existing `PATCH /api/stats/batch`, auth,
   offline frontend behavior, and guarded test-database requirements
 
@@ -747,7 +749,7 @@ Deliverables: Go command, migrations, `logwatcher`/`parser`/`session`/`storage` 
 **Owner: Yeetcraft repository**
 
 **Status: not started.** File map only:
-[`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
+[`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md).
 
 Transaction boundary:
 
@@ -960,7 +962,7 @@ canonical v1 contract is reviewed.
 | ----------- | -------- |
 | Yeetcraft `contracts/companion/v1/` | Canonical versioned schemas/examples after review |
 | Decision record | Identity, idempotency, classification, auth, privacy, and reconciliation choices |
-| Repository file maps | [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) (companion Phase 2); Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) (Phase 3). Maps only — Phase 2/3 not implemented. |
+| Repository file maps | [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) (companion Phase 2); Yeetcraft [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) (Phase 3). Maps only — Phase 2/3 not implemented. |
 | Contract review evidence | Compatibility review against current API, frontend writes, and test guards |
 
 ---

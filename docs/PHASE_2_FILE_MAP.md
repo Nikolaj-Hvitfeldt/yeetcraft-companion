@@ -7,8 +7,8 @@
 | Work package | WP5 |
 | Owner | yeetcraft-companion |
 | Phase mapped here | **Phase 2** (headless capture foundation) |
-| Canonical contract | [`../yeetcraft/contracts/companion/v1/`](../yeetcraft/contracts/companion/v1/README.md) (Yeetcraft-owned) |
-| Yeetcraft Phase 3 map | [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) |
+| Canonical contract | [`../yeetcraft/contracts/companion/v1/`](../../yeetcraft/contracts/companion/v1/README.md) (Yeetcraft-owned) |
+| Yeetcraft Phase 3 map | [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) |
 
 This document is a **file map**, not a new protocol and not a second contract.
 
@@ -39,7 +39,7 @@ Untracked names, realms, and GUIDs must not be prepared for later upload. Cause 
 
 | Dependency | Owner | Notes |
 | ---------- | ----- | ----- |
-| Frozen v1 wire contract | Yeetcraft | Read [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md). Do not fork it. |
+| Frozen v1 wire contract | Yeetcraft | Read [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md). Do not fork it. |
 | Nullable unique `characters.guid` | Yeetcraft character slice | **End-to-end ingest** blocker. Phase 2 may persist local GUIDs and IDs without calling the server. |
 | `dungeons.challenge_map_id`, `seasons.starts_at`/`ends_at` | Yeetcraft Phase 3 schema | Server resolution. Companion still sends challenge map ID and optional season hint. |
 | HTTP uploader | **Phase 4** (`internal/uploader`) | Not Phase 2 |
@@ -96,7 +96,7 @@ These packages exist as `doc.go` only. Phase 2 fills them. Adding a SQLite drive
 | `internal/storage/storage_test.go` | to create | Uniqueness, crash-before-ack, full rescan vs partial resume. |
 | `internal/session/doc.go` | existing stub | Package comment. |
 | `internal/session/session.go` | to create | Run state machine (idle/candidate/active/completing/completed/abandoned). |
-| `internal/session/ids.go` | to create | Canonical `clientRunId` / `clientEventId` recipes from [`CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md) (UTF-8 NFC, length-prefixed SHA-256). Season and `installationId` excluded. |
+| `internal/session/ids.go` | to create | Canonical `clientRunId` / `clientEventId` recipes from [`CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) (UTF-8 NFC, length-prefixed SHA-256). Season and `installationId` excluded. |
 | `internal/session/ids_test.go` | to create | Hash vectors against frozen recipes; synthetic inputs only. Optionally compare derived fixtures — checksum strategy **deferred to Validate**. |
 | `cmd/yeetcraft-companion/main.go` | existing stub — extend | Headless capture wiring: config (fail closed) → watcher → parser → detection → session IDs → storage. No HTTP upload. |
 
@@ -107,7 +107,7 @@ These packages exist as `doc.go` only. Phase 2 fills them. Adding a SQLite drive
 | Path | Status | Phase | Role |
 | ---- | ------ | ----- | ---- |
 | `internal/uploader/doc.go` | existing stub — do not implement | **4** | Versioned HTTP client, `batchId`, retries, ack of ordered results. Reads canonical contract; must not become a schema editor. |
-| `internal/review/doc.go` | existing stub — do not implement | **5** | Operator review UI/flow. Website remains classification authority ([Yeetcraft ADR 001](../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)). |
+| `internal/review/doc.go` | existing stub — do not implement | **5** | Operator review UI/flow. Website remains classification authority ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)). |
 
 ### Docs (Phase 2 may update; WP5 only maps them)
 
@@ -118,24 +118,20 @@ These packages exist as `doc.go` only. Phase 2 fills them. Adding a SQLite drive
 | `docs/YEETCRAFT_INTEGRATION.md` | existing | Integration boundaries. |
 | `docs/COMBAT_LOG_CAPABILITIES.md` | existing | Evidence; do not promote unverified capabilities. |
 | `README.md` | existing | Status; Phase 2 later marks watcher/SQLite as implemented only after they exist. |
-| `testdata/contract/v1/` | to create (optional, Phase 2 tests) | Derived copies of Yeetcraft examples only, with recorded checksum. Never independently edited. |
+| `testdata/contract/v1/` | existing (checksum record) | [`CANONICAL_CHECKSUMS.sha256`](../testdata/contract/v1/CANONICAL_CHECKSUMS.sha256). Derived JSON copies remain Phase 2 tests; never independently edited. |
 
 ---
 
-## Validate package (not started in WP5)
+## Validate package
 
-Machine-validation harness: **deferred to Validate**.
+Recorded in Phase 1 Validate. Canonical checksum strategy:
+[`CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md).
 
-Validate should cover:
+Relative-link and no-schema-fork checks: [`scripts/verify-canonical-checksums.ps1`](../scripts/verify-canonical-checksums.ps1).
 
-- [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md) (this file)
-- [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) (WP5 checkbox and map links only)
-- [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md) (pointer to this map)
-- [`YEETCRAFT_INTEGRATION.md`](./YEETCRAFT_INTEGRATION.md) (pointer)
-- Relative links to `../yeetcraft/contracts/companion/v1/` (when the sibling checkout is present)
-- Confirmation this repo does **not** contain a copied canonical `schema/` tree
+**Deferred to Phase 2/3 CI:** GitHub Actions; `go test` materializing derived JSON; requiring a Yeetcraft checkout in companion-only CI.
 
-Do not require `go test` / `go vet` for WP5 unless Go files are edited.
+Do not require `go test` / `go vet` for Validate unless Go files are edited.
 
 ---
 
@@ -143,8 +139,9 @@ Do not require `go test` / `go vet` for WP5 unless Go files are edited.
 
 | Document | Role |
 | -------- | ---- |
-| [`../yeetcraft/contracts/companion/v1/README.md`](../yeetcraft/contracts/companion/v1/README.md) | Canonical contract ownership |
-| [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md) | Normative recipes and payloads |
-| [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) | Yeetcraft Phase 3 file map |
+| [`../yeetcraft/contracts/companion/v1/README.md`](../../yeetcraft/contracts/companion/v1/README.md) | Canonical contract ownership |
+| [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) | Normative recipes and payloads |
+| [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md) | Yeetcraft Phase 3 file map |
 | [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVIEW.md) | Current producers vs gaps |
+| [`CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md) | Derived-fixture checksum / drift strategy |
 | [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) | Phased roadmap |

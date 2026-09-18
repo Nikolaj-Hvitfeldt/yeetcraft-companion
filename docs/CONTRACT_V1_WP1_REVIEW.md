@@ -14,9 +14,9 @@ truth.
 
 WP1 normative decisions are frozen. **WP2** field names below map to the canonical
 request schema at
-[`../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json`](../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json).
+[`../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json`](../../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json).
 WP3 acknowledgement semantics are frozen in canonical
-[`CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md#acknowledgement-semantics).
+[`CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md#acknowledgement-semantics).
 
 ---
 
@@ -24,7 +24,7 @@ WP3 acknowledgement semantics are frozen in canonical
 
 | Source | Role |
 | ------ | ---- |
-| [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md) | Locked WP1 semantics |
+| [`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md) | Locked WP1 semantics |
 | `internal/parser/` | Neutral V22 parsing, provisional timestamp envelope |
 | `internal/detection/` | In-memory run/encounter context, damage buffers, death candidates |
 | `cmd/logprobe/` | CLI integration of parser + detection (`--deaths`, `--track-guid`) |
@@ -54,7 +54,7 @@ Verified absences: `internal/storage/` (SQLite stub), `internal/uploader/`
 
 Companion v1 ingest cannot be implemented end-to-end until Yeetcraft adds
 nullable unique `characters.guid` per
-[`../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md`](../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md).
+[`../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md`](../../yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md).
 **Not implemented in either repository.**
 
 ---
@@ -211,7 +211,7 @@ gate `observeDeath` output before serialization.
 | Contract concept | Current producer | Status |
 | ---------------- | ---------------- | ------ |
 | Ingest category | Contract: server defaults to `death`; ingest omits or constrains category | No upload; detection does not assign category |
-| `yeet` / `ignored` | Website post-ingest correction ([Yeetcraft ADR 001](../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)) | Not companion wire v1 |
+| `yeet` / `ignored` | Website post-ingest correction ([Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md)) | Not companion wire v1 |
 | User manual classification | `internal/review/` stub | Phase 5 |
 | Detector yeet suggestion | Not implemented | Out of MVP scope |
 
@@ -276,14 +276,15 @@ func (r *runTracker) observeStart(fields []string) {
 - [x] `sourceType` enum mapped from `DamageHit.EventType`
 - [x] Omitted wire fields documented (`encounterName`, spell names, source GUID/name)
 - [x] Run gating rule aligned with `run_context_incomplete`
-- [x] No companion-side schema copy; canonical checksum fixtures deferred to Phase 2/3
+- [x] No companion-side schema copy; checksums recorded in Validate
+  ([`CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md)); `go test` drift harness deferred to Phase 2/3
 
 ---
 
 ## WP3 — credential boundary and retry/acknowledgement gaps
 
 Canonical WP3 spec:
-[`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md)
+[`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../../yeetcraft/contracts/companion/v1/CONTRACT.md)
 (acknowledgement, limits, auth, error taxonomy).
 
 | Contract requirement | Current companion state | Gap |
@@ -296,7 +297,7 @@ Canonical WP3 spec:
 | Retry **5xx** / **429** with same `batchId` + body | No retry policy | Phase 4 |
 | Treat **409** `batch_conflict` / `event_id_conflict` as non-retryable | None | Phase 4 must halt and surface for review |
 | Treat **422** / **401** / **413** / **415** as non-retryable config/payload fixes | None | Phase 4 |
-| Map per-event `accepted` / `duplicate` / `needs_review` / `rejected` | None | Phase 4 parses [`ingest-batch-response.schema.json`](../yeetcraft/contracts/companion/v1/schema/ingest-batch-response.schema.json) |
+| Map per-event `accepted` / `duplicate` / `needs_review` / `rejected` | None | Phase 4 parses [`ingest-batch-response.schema.json`](../../yeetcraft/contracts/companion/v1/schema/ingest-batch-response.schema.json) |
 | `installationId` diagnostics only (not auth) | Not generated | Phase 2; must not be sent as a credential |
 | Route-level rate limit handling (**429**) | None | Phase 4 backoff |
 | Never log credentials or full payloads | `logprobe` prints cause GUIDs today | Phase 2 redaction + Phase 4 transport logging policy |
@@ -317,17 +318,18 @@ not part of the companion v1 wire contract. Canonical specification:
 
 | Document | Role |
 | -------- | ---- |
-| [Yeetcraft ADR 001](../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md) | Post-ingest classification, correction model, transition matrix |
-| [Yeetcraft ADR 002](../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md) | Derived aggregates, manual adjustments, `expectedRevision` / `stale_revision` |
+| [Yeetcraft ADR 001](../../yeetcraft/docs/adr/001-post-ingest-classification-and-corrections.md) | Post-ingest classification, correction model, transition matrix |
+| [Yeetcraft ADR 002](../../yeetcraft/docs/adr/002-revision-protected-adjustment-ledger.md) | Derived aggregates, manual adjustments, `expectedRevision` / `stale_revision` |
 
 Companion producers continue to omit `category` or send `death` only. No
 companion schema or uploader changes are required for WP4.
 
 ## Next step
 
-**Validate** — machine-validate schemas/examples and relative links. Do not start Phase 2/3 implementation from this review doc.
+**Human review / PR to `dev`** — Validate machine checks are in
+[`CONTRACT_V1_DERIVED_FIXTURES.md`](./CONTRACT_V1_DERIVED_FIXTURES.md). Do not start Phase 2/3 implementation from this review doc.
 
 WP5 file maps (documentation only; Phase 2/3 not done):
 
 - Companion Phase 2: [`PHASE_2_FILE_MAP.md`](./PHASE_2_FILE_MAP.md)
-- Yeetcraft Phase 3: [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md)
+- Yeetcraft Phase 3: [`../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`](../../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md)
