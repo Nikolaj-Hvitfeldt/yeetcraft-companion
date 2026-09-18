@@ -64,7 +64,7 @@ foreach ($line in $lines) {
 function Get-HeadingSlugs([string]$MarkdownPath) {
     $counts = @{}
     $slugs = New-Object "System.Collections.Generic.HashSet[string]"
-    foreach ($line in Get-Content -LiteralPath $MarkdownPath) {
+    foreach ($line in Get-Content -LiteralPath $MarkdownPath -Encoding utf8) {
         if ($line -notmatch '^(#{1,6})\s+(.+)$') { continue }
         $text = $Matches[2].Trim()
         $text = $text -replace '`', ''
@@ -85,7 +85,7 @@ function Get-HeadingSlugs([string]$MarkdownPath) {
 
 function Test-RelativeMarkdownLinks([string]$MarkdownPath) {
     $dir = Split-Path -Parent $MarkdownPath
-    $content = Get-Content -Raw -LiteralPath $MarkdownPath
+    $content = Get-Content -Raw -Encoding utf8 -LiteralPath $MarkdownPath
     foreach ($match in [regex]::Matches($content, '\[(?:[^\]]+)\]\(([^)]+)\)')) {
         $href = $match.Groups[1].Value.Trim()
         if ($href -match '^(https?:|mailto:|#)') { continue }

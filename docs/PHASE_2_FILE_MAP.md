@@ -20,7 +20,7 @@ WP1 producer gaps remain in [`CONTRACT_V1_WP1_REVIEW.md`](./CONTRACT_V1_WP1_REVI
 
 ## Phase 2 acceptance evidence (WP 2.7)
 
-Recorded in [`IMPLEMENTATION_PLAN.md` §8.4](./IMPLEMENTATION_PLAN.md#84-phase-2--headless-companion-foundation).
+Recorded in [`IMPLEMENTATION_PLAN.md` §8.4](./IMPLEMENTATION_PLAN.md#84-phase-2-headless-companion-foundation).
 
 | Check | Location |
 | ----- | -------- |
