@@ -28,11 +28,11 @@ Operational guide for AI coding assistants working in this repository.
 ## Contract ownership
 
 - The **canonical companion API contract** is owned by the Yeetcraft repository.
-- **Planned contract location (not implemented yet):** `./yeetcraft/contracts/companion/v1/`
-  - Verified absent at bootstrap; do not describe this path as existing until it does.
-- This repository may later contain **generated code or test fixtures** derived from that contract. Those copies must **not** become an alternative source of truth.
+- **Canonical location:** `../yeetcraft/contracts/companion/v1/` (draft — reviewed, not implemented as an API). Inspect before describing routes or tables as shipping.
+- This repository may later contain **generated code or test fixtures** derived from that contract. Those copies must **not** become an alternative source of truth. Do **not** copy the contract directory into this repository as an independently edited source.
+- Phase 2 file map: [`docs/PHASE_2_FILE_MAP.md`](docs/PHASE_2_FILE_MAP.md). Yeetcraft Phase 3 map: `../yeetcraft/contracts/companion/v1/IMPLEMENTATION_MAP.md`.
 - Contract changes must be **coordinated explicitly** across both repositories.
-- Until the companion contract exists, treat Yeetcraft `docs/API.md` as reference for the **existing** web API only — not as the companion upload spec.
+- Treat Yeetcraft `docs/API.md` as reference for the **existing** web API only — not as the companion upload spec.
 
 ## Development behavior
 
@@ -119,6 +119,8 @@ non-blocking.**
 - Phase 1 defines and reviews contracts only. **SQLite**, migrations, API
   implementation, uploads, **Wails**, and addon work remain deferred until
   their corresponding phases approve them.
+- Phase 2 is **CLI-first / headless** (`cmd/yeetcraft-companion`). Wails is
+  Phase 6. Do not treat desktop-shell timing as an open Phase 1/2 decision.
 
 ## Definition of done
 
@@ -134,8 +136,12 @@ Before marking a task complete:
 
 ## Open questions
 
-Resolve in docs or scoped tasks; do not guess in production code:
+Do not guess locked protocol in production code. Remaining items are evidence
+or packaging, not a second ingest spec:
 
-- Companion upload API schema (awaiting `./yeetcraft/contracts/companion/v1/`).
-- Combat-log events for deaths, yeets, dungeon, and party roster.
-- Desktop shell timing (CLI-first vs early Wails).
+- Canonical ingest contract: `../yeetcraft/contracts/companion/v1/` (draft —
+  reviewed, not implemented).
+- Combat-log evidence backlog (timestamp envelope, `UNIT_DIED` suffix,
+  abandonment): [`docs/COMBAT_LOG_CAPABILITIES.md`](docs/COMBAT_LOG_CAPABILITIES.md).
+  `yeet` / `ignored` are website post-ingest classifications, not combat-log
+  events.

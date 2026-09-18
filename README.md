@@ -29,8 +29,9 @@ fail-closed version/project quarantine, synthetic fixtures, and the privacy-safe
 Two reviewed local retail sessions cover five completed runs and 43 deaths
 (35 tracked, eight untracked), including boss/trash attribution, a failed pull,
 a full-party wipe, repeated death after resurrection, and high/medium cause
-confidence. Detected deaths default to ordinary deaths; the planned review flow
-lets users reclassify them as `yeet` or `ignored`. Automatic yeet detection is
+confidence. Detected deaths default to ordinary deaths; the **Yeetcraft
+website** reclassifies them as `yeet` or `ignored` (companion local review is
+not classification authority). Automatic yeet detection is
 not an MVP gate.
 
 The following are **not** implemented yet:

@@ -103,9 +103,9 @@ verified with a real log in this phase.
 | Final damage source            | Identify last relevant damage dealer | Recent `SPELL_DAMAGE` / `SPELL_PERIODIC_DAMAGE` / `SWING_DAMAGE` before `UNIT_DIED` | Partially verified | high       | A five-player wipe included three deaths without a lethal-overkill hit; retain medium-confidence alternatives | Forty-three reviewed deaths                                             | Rank causes; accept unknown cause without losing death   |
 | Spell or ability causing death | Human-readable ability name and ID   | Spell fields on damage events                                                       | Partially verified | high       | Second session produced 28 high-confidence and three medium-confidence primaries                     | Forty-three reviewed deaths                                                    | Store best rank; medium/low confidence remains reviewable |
 | Boss attribution               | Link death to active boss encounter  | Active `ENCOUNTER_START` + death timestamp                                          | Partially verified | high       | Killing source may be an add; encounter and cause remain separate                                    | Twelve boss-context and thirty-one trash deaths                                | Separate boss encounter from `death_causes` source       |
-| Environmental damage           | Detect environmental damage          | `ENVIRONMENTAL_DAMAGE`, fall, drowning, etc.                                        | Partially verified | medium     | Twelve real `Falling` events parsed, all nonlethal; lethal and void semantics remain unverified       | Twelve nonlethal falls; lethal scenario still open                             | Count a real death as `death`; user may reclassify       |
-| Knockback or displacement      | Suggest yeet-like review evidence    | Knockback auras, `SPELL_AURA_APPLIED`, position-less inference                      | Not investigated   | —          | Rarely explicit; high false-positive risk                                                            | Knockback followed by death                                                     | Never auto-classify; user may change `death` to `yeet`   |
-| Falling into the void          | Suggest void/edge review evidence    | Fall damage, environmental, no recent enemy hit                                     | Not investigated   | —          | Indistinguishable from some environmental deaths                                                     | Environmental or falling death                                                  | Default `death`; user may reclassify to `yeet`           |
+| Environmental damage           | Detect environmental damage          | `ENVIRONMENTAL_DAMAGE`, fall, drowning, etc.                                        | Partially verified | medium     | Twelve real `Falling` events parsed, all nonlethal; lethal and void semantics remain unverified       | Twelve nonlethal falls; lethal scenario still open                             | Count a real death as `death`; website may reclassify |
+| Knockback or displacement      | Suggest yeet-like review evidence    | Knockback auras, `SPELL_AURA_APPLIED`, position-less inference                      | Not investigated   | —          | Rarely explicit; high false-positive risk                                                            | Knockback followed by death                                                     | Never auto-classify; website may reclassify `death` to `yeet` |
+| Falling into the void          | Suggest void/edge review evidence    | Fall damage, environmental, no recent enemy hit                                     | Not investigated   | —          | Indistinguishable from some environmental deaths                                                     | Environmental or falling death                                                  | Default `death`; website may reclassify to `yeet`           |
 
 ### File mechanics
 
@@ -261,7 +261,12 @@ The following remain open but do not block Phase 1:
 - `/reload`, full restart, and multi-file run continuity;
 - live append, rotation, truncation, and persisted offsets;
 - lethal environmental and knockback/void evidence for automatic suggestions;
-- exact unresolved V22 suffix/unknown-field semantics.
+- exact unresolved V22 suffix/unknown-field semantics;
+- retail 12.0+ timestamp envelope confirmation (timezone-less vs
+  offset-bearing; DST). Companion v1 already fails closed until a persisted
+  WoW-log timezone can interpret timezone-less stamps; do not invent a new
+  wire timestamp format. This is a scoped evidence / Phase 2 parser task, not
+  a Phase 1 contract open question.
 
 Shape-incomplete death scenarios must not be promoted to passing success
 fixtures.
