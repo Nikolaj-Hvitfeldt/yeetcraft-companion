@@ -1,2 +1,2 @@
-// Package config will load companion application settings from the environment.
+// Package config loads companion application settings from explicit environment lookup.
 package config

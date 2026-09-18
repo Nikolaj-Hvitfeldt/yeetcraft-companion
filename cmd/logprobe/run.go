@@ -49,12 +49,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("logprobe", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: logprobe --file <path> [--deaths] [--track-guid <Player-GUID> ...]")
+		fmt.Fprintln(stderr, "Usage: logprobe --file <path> [--deaths] [--track-guid <Player-GUID> ...] [--track-all-diagnostic]")
 		fmt.Fprintln(stderr, "Reads a combat log and prints privacy-safe parser counts.")
 		fmt.Fprintln(stderr, "With --deaths, also prints tracked player death candidates.")
+		fmt.Fprintln(stderr, "Death detection requires --track-guid or --track-all-diagnostic.")
 	}
 	filePath := flags.String("file", "", "combat-log file to read")
 	reportDeaths := flags.Bool("deaths", false, "report player death candidates")
+	trackAllDiagnostic := flags.Bool("track-all-diagnostic", false, "diagnostic-only: track every player death")
 	var trackGUIDs []string
 	flags.Func("track-guid", "limit death detection to a player GUID (repeatable)", func(value string) error {
 		if value == "" {
@@ -85,7 +87,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var counts eventCounts
 	var deathTracker *detection.Tracker
 	if *reportDeaths {
-		deathTracker = detection.NewTracker(trackGUIDs...)
+		switch {
+		case *trackAllDiagnostic:
+			deathTracker = detection.NewDiagnosticTracker()
+		case len(trackGUIDs) > 0:
+			deathTracker, err = detection.NewTracker(trackGUIDs)
+			if err != nil {
+				fmt.Fprintln(stderr, "death tracking: invalid tracked guid configuration")
+				return exitFailure
+			}
+		default:
+			flags.Usage()
+			return exitFailure
+		}
 	}
 	summary, err := parser.ScanReader(file, parser.DefaultMaxLineSize, state, func(event parser.Event) error {
 		if deathTracker != nil {

@@ -1,11 +1,53 @@
 package detection
 
 import (
+	"errors"
 	"os"
 	"testing"
 
 	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
 )
+
+func TestNewTrackerRequiresGUIDs(t *testing.T) {
+	tests := []struct {
+		name    string
+		guids   []string
+		wantErr error
+	}{
+		{name: "nil", guids: nil, wantErr: ErrNoTrackedGUIDs},
+		{name: "empty", guids: []string{}, wantErr: ErrNoTrackedGUIDs},
+		{name: "blank entry", guids: []string{""}, wantErr: ErrNoTrackedGUIDs},
+		{name: "invalid shape", guids: []string{"not-a-guid"}, wantErr: ErrInvalidTrackedGUID},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tracker, err := NewTracker(tt.guids)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("NewTracker() error = %v, want %v", err, tt.wantErr)
+				}
+				if tracker != nil {
+					t.Fatal("expected nil tracker on error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("NewTracker() unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestNewDiagnosticTrackerTracksAllPlayers(t *testing.T) {
+	tracker := NewDiagnosticTracker()
+	if tracker == nil {
+		t.Fatal("NewDiagnosticTracker returned nil")
+	}
+	if !tracker.tracks("Player-9999-00000099") {
+		t.Fatal("diagnostic tracker should track any player guid")
+	}
+}
 
 func TestTrackerBossContextDeath(t *testing.T) {
 	const path = "../../testdata/logs/synthetic/boss-context-death.txt"
@@ -15,7 +57,10 @@ func TestTrackerBossContextDeath(t *testing.T) {
 	}
 	defer file.Close()
 
-	tracker := NewTracker("Player-9999-00000004")
+	tracker, err := NewTracker([]string{"Player-9999-00000004"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &parser.ParserState{}
 	_, err = parser.ScanReader(file, parser.DefaultMaxLineSize, state, tracker.Observe)
 	if err != nil {
@@ -56,7 +101,10 @@ func TestTrackerSpellDamageDeath(t *testing.T) {
 	}
 	defer file.Close()
 
-	tracker := NewTracker("Player-9999-00000001")
+	tracker, err := NewTracker([]string{"Player-9999-00000001"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &parser.ParserState{}
 	if _, err := parser.ScanReader(file, parser.DefaultMaxLineSize, state, tracker.Observe); err != nil {
 		t.Fatal(err)
@@ -78,7 +126,10 @@ func TestTrackerIgnoresUntrackedPlayer(t *testing.T) {
 	}
 	defer file.Close()
 
-	tracker := NewTracker("Player-9999-00000001")
+	tracker, err := NewTracker([]string{"Player-9999-00000001"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &parser.ParserState{}
 	if _, err := parser.ScanReader(file, parser.DefaultMaxLineSize, state, tracker.Observe); err != nil {
 		t.Fatal(err)
@@ -96,7 +147,10 @@ func TestTrackerChallengeRunContext(t *testing.T) {
 		"SPELL_DAMAGE,Creature-Synthetic,\"Synthetic Source\",0xa48,0x0,Player-9999-00000001,\"TrackedAlpha-SyntheticRealm\",0x512,0x0,900001,\"Synthetic Bolt\",0x40,Player-9999-00000001,0000000000000000,0,100000,0,50000,1000,0,0,0,0,100,100,0,10.00,20.00,9999,0.0000,500,120000,120000,20000,0x40,0,0,0,nil,nil,nil,ST",
 		"UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,Player-9999-00000001,\"TrackedAlpha-SyntheticRealm\",0x512,0x0,0",
 	}
-	tracker := NewTracker("Player-9999-00000001")
+	tracker, err := NewTracker([]string{"Player-9999-00000001"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &parser.ParserState{}
 	for i, line := range lines {
 		if err := tracker.Observe(parser.ParseLine(i+1, line, state)); err != nil {
@@ -122,7 +176,10 @@ func TestTrackerClearsEncounterAfterEnd(t *testing.T) {
 		"ENCOUNTER_END,9001,\"Synthetic Boss\",8,5,1",
 		"UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,Player-9999-00000001,\"TrackedAlpha-SyntheticRealm\",0x512,0x0,0",
 	}
-	tracker := NewTracker("Player-9999-00000001")
+	tracker, err := NewTracker([]string{"Player-9999-00000001"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := &parser.ParserState{}
 	for i, line := range lines {
 		if err := tracker.Observe(parser.ParseLine(i+1, line, state)); err != nil {

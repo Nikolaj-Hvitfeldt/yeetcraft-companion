@@ -23,7 +23,6 @@ func printDeathSummary(stdout io.Writer, deaths []detection.DeathCandidate) {
 		}
 		if death.Encounter.Active || death.Encounter.EncounterID != 0 {
 			fmt.Fprintf(stdout, "death_%d_encounter_id: %d\n", i+1, death.Encounter.EncounterID)
-			fmt.Fprintf(stdout, "death_%d_encounter_name: %s\n", i+1, death.Encounter.EncounterName)
 		} else {
 			fmt.Fprintf(stdout, "death_%d_encounter_active: 0\n", i+1)
 		}
@@ -35,14 +34,8 @@ func printDeathSummary(stdout io.Writer, deaths []detection.DeathCandidate) {
 			if cause.Hit.SpellID != 0 {
 				fmt.Fprintf(stdout, "%s_spell_id: %d\n", prefix, cause.Hit.SpellID)
 			}
-			if cause.Hit.SpellName != "" {
-				fmt.Fprintf(stdout, "%s_spell_name: %s\n", prefix, cause.Hit.SpellName)
-			}
 			if cause.Hit.EnvironmentalType != "" {
 				fmt.Fprintf(stdout, "%s_environmental_type: %s\n", prefix, cause.Hit.EnvironmentalType)
-			}
-			if cause.Hit.SourceGUID != "" {
-				fmt.Fprintf(stdout, "%s_source_guid: %s\n", prefix, cause.Hit.SourceGUID)
 			}
 			fmt.Fprintf(stdout, "%s_amount: %d\n", prefix, cause.Hit.Amount)
 			fmt.Fprintf(stdout, "%s_overkill: %d\n", prefix, cause.Hit.Overkill)

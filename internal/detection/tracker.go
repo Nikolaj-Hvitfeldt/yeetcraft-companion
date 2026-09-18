@@ -1,6 +1,20 @@
 package detection
 
-import "github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+import (
+	"errors"
+	"fmt"
+	"regexp"
+
+	"github.com/Nikolaj-Hvitfeldt/yeetcraft-companion/internal/parser"
+)
+
+// ErrNoTrackedGUIDs is returned when NewTracker is called with an empty or nil GUID list.
+var ErrNoTrackedGUIDs = errors.New("tracked guids required")
+
+// ErrInvalidTrackedGUID is returned when a tracked GUID does not match the Player- prefix shape.
+var ErrInvalidTrackedGUID = errors.New("invalid tracked player guid")
+
+var playerGUIDPattern = regexp.MustCompile(`^Player-[0-9A-Za-z]+-[0-9A-Za-z]+$`)
 
 // Tracker consumes parsed combat-log events and accumulates death candidates.
 type Tracker struct {
@@ -13,24 +27,35 @@ type Tracker struct {
 	deaths    []DeathCandidate
 }
 
-// NewTracker returns a tracker. When trackGUIDs is empty, every player GUID
-// death is recorded; otherwise only listed GUIDs match.
-func NewTracker(trackGUIDs ...string) *Tracker {
+// NewTracker returns a tracker that records deaths only for the listed player GUIDs.
+// An empty or nil list is an error; production capture must never default to track-all.
+func NewTracker(trackedGUIDs []string) (*Tracker, error) {
+	if len(trackedGUIDs) == 0 {
+		return nil, ErrNoTrackedGUIDs
+	}
 	t := &Tracker{
 		buffers: make(map[string]*damageBuffer),
+		tracked: make(map[string]struct{}, len(trackedGUIDs)),
 	}
-	if len(trackGUIDs) == 0 {
-		t.allPlayers = true
-		return t
-	}
-	t.tracked = make(map[string]struct{}, len(trackGUIDs))
-	for _, guid := range trackGUIDs {
+	for _, guid := range trackedGUIDs {
 		if guid == "" {
-			continue
+			return nil, ErrNoTrackedGUIDs
+		}
+		if !playerGUIDPattern.MatchString(guid) {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidTrackedGUID, guid)
 		}
 		t.tracked[guid] = struct{}{}
 	}
-	return t
+	return t, nil
+}
+
+// NewDiagnosticTracker returns a tracker that records every player death.
+// It is the only supported path to track-all behavior and is intended for logprobe diagnostics.
+func NewDiagnosticTracker() *Tracker {
+	return &Tracker{
+		allPlayers: true,
+		buffers:    make(map[string]*damageBuffer),
+	}
 }
 
 // Observe ingests one parsed event.
