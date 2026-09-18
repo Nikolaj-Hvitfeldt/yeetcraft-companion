@@ -2,7 +2,9 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -436,6 +438,106 @@ func TestOpenConfiguresWALAndForeignKeys(t *testing.T) {
 	}
 	if foreignKeys != 1 {
 		t.Fatalf("foreign_keys = %d, want 1", foreignKeys)
+	}
+}
+
+// Querying the pool once can reuse a single connection, which hides pragmas
+// that were applied to that connection alone. Force concurrent connections so
+// every connection database/sql opens is checked.
+func TestPragmasApplyToEveryPooledConnection(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	const connections = 4
+
+	var wg sync.WaitGroup
+	foreignKeys := make([]int, connections)
+	busyTimeouts := make([]int, connections)
+	errs := make([]error, connections)
+	release := make(chan struct{})
+
+	for i := range foreignKeys {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-release
+			conn, err := db.SQL().Conn(ctx)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			defer conn.Close()
+			if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys[i]); err != nil {
+				errs[i] = err
+				return
+			}
+			errs[i] = conn.QueryRowContext(ctx, `PRAGMA busy_timeout`).Scan(&busyTimeouts[i])
+		}(i)
+	}
+	close(release)
+	wg.Wait()
+
+	for i := range errs {
+		if errs[i] != nil {
+			t.Fatalf("connection %d: %v", i, errs[i])
+		}
+		if foreignKeys[i] != 1 {
+			t.Fatalf("connection %d: foreign_keys = %d, want 1", i, foreignKeys[i])
+		}
+		if busyTimeouts[i] != defaultBusyTimeout {
+			t.Fatalf("connection %d: busy_timeout = %d, want %d", i, busyTimeouts[i], defaultBusyTimeout)
+		}
+	}
+}
+
+// The insert runs on several connections, because a single insert can reuse the
+// one connection that Open happened to use and hide a missing pragma.
+func TestForeignKeysRejectOrphanEvent(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	const attempts = 4
+
+	var wg sync.WaitGroup
+	errs := make([]error, attempts)
+	release := make(chan struct{})
+
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-release
+			conn, err := db.SQL().Conn(ctx)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			defer conn.Close()
+			_, errs[i] = conn.ExecContext(ctx, `
+				INSERT INTO events(
+					client_event_id, run_id, character_guid, death_instant, ordinal,
+					hold_reason, review_status, category, confidence, payload_json, created_at
+				) VALUES (?, 999999, ?, ?, 0, '', 'pending', '', '', '{}', ?)
+			`, fmt.Sprintf("orphan-%d", i), testGUID, testRunStart, testRunStart)
+		}(i)
+	}
+	close(release)
+	wg.Wait()
+
+	for i, err := range errs {
+		if err == nil {
+			t.Fatalf("attempt %d: expected foreign key violation for event referencing a missing run", i)
+		}
+	}
+
+	count, err := db.CountEvents(ctx)
+	if err != nil {
+		t.Fatalf("CountEvents: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("event count = %d, want 0", count)
 	}
 }
 

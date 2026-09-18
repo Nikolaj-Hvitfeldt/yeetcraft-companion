@@ -163,7 +163,21 @@ func (s *captureService) pollOnce(ctx context.Context) error {
 		return err
 	}
 	s.watcher.AckCommitted(result.Committed)
-	return nil
+	return s.persistSupersededRuns(ctx)
+}
+
+// persistSupersededRuns closes runs that a later CHALLENGE_MODE_START replaced
+// before they completed. Without this they would stay active in the database.
+func (s *captureService) persistSupersededRuns(ctx context.Context) error {
+	for {
+		abandoned := s.session.TakeAbandoned()
+		if abandoned == nil {
+			return nil
+		}
+		if err := s.persistRunClosure(ctx, abandoned, storage.RunStatusAbandoned); err != nil {
+			return err
+		}
+	}
 }
 
 func (s *captureService) persistPoll(ctx context.Context, result logwatcher.PollResult) error {
@@ -228,7 +242,13 @@ func (s *captureService) persistRunClosure(ctx context.Context, snapshot *sessio
 		return nil
 	}
 	endedAt := s.sessionNow(snapshot)
-	return s.db.UpdateRunStatus(ctx, snapshot.ClientRunID, status, endedAt)
+	return s.db.CloseRun(ctx, storage.RunInput{
+		ClientRunID:               snapshot.ClientRunID,
+		ChallengeModeStartInstant: snapshot.ChallengeModeStartInstant,
+		ChallengeMapID:            snapshot.ChallengeMapID,
+		KeystoneLevel:             snapshot.KeystoneLevel,
+		StartedAt:                 snapshot.StartedAt,
+	}, status, endedAt)
 }
 
 func (s *captureService) sessionNow(snapshot *session.RunSnapshot) time.Time {

@@ -106,4 +106,39 @@ func TestManagerNewStartAbandonsPreviousRun(t *testing.T) {
 	if m.Current().ClientRunID == firstID {
 		t.Fatal("expected new run after overlapping start")
 	}
+
+	abandoned := m.TakeAbandoned()
+	if abandoned == nil {
+		t.Fatal("superseded run must be reported for persistence")
+	}
+	if abandoned.ClientRunID != firstID {
+		t.Fatalf("abandoned run = %q, want %q", abandoned.ClientRunID, firstID)
+	}
+	if abandoned.State != RunStateAbandoned {
+		t.Fatalf("abandoned state = %q", abandoned.State)
+	}
+	if again := m.TakeAbandoned(); again != nil {
+		t.Fatalf("TakeAbandoned returned %+v after draining", again)
+	}
+}
+
+func TestManagerCloseAndInactivityDoNotQueueSupersededRuns(t *testing.T) {
+	m, current := testManager(t)
+	m.Observe(metadataEvent(`1/15/2026 20:00:00.0000 CHALLENGE_MODE_START,"Synthetic Dungeon",501,100,12,[1]`), time.UTC)
+	if closed := m.Close(); closed == nil {
+		t.Fatal("expected Close to return the abandoned run")
+	}
+	if queued := m.TakeAbandoned(); queued != nil {
+		t.Fatalf("Close must not also queue the run: %+v", queued)
+	}
+
+	m, current = testManager(t)
+	m.Observe(metadataEvent(`1/15/2026 20:00:00.0000 CHALLENGE_MODE_START,"Synthetic Dungeon",501,100,12,[1]`), time.UTC)
+	*current = current.Add(2 * time.Minute)
+	if abandoned := m.CheckInactivity(); abandoned == nil {
+		t.Fatal("expected CheckInactivity to return the abandoned run")
+	}
+	if queued := m.TakeAbandoned(); queued != nil {
+		t.Fatalf("CheckInactivity must not also queue the run: %+v", queued)
+	}
 }

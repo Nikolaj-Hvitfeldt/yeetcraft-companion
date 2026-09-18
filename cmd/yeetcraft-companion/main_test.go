@@ -277,6 +277,62 @@ func TestRotationPersistOnce(t *testing.T) {
 	}
 }
 
+// A key left before it completes is followed by another CHALLENGE_MODE_START.
+// The superseded run must not stay active in the database.
+func TestSupersededRunIsPersistedAsAbandoned(t *testing.T) {
+	dir := t.TempDir()
+	log := strings.Join([]string{
+		"COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.0.0,PROJECT_ID,1",
+		`1/15/2026 20:00:00.0000 CHALLENGE_MODE_START,"Synthetic Dungeon",501,100,12,[1]`,
+		`1/15/2026 21:00:00.0000 CHALLENGE_MODE_START,"Synthetic Dungeon",501,100,12,[1]`,
+		"",
+	}, "\n")
+	logPath := writeTestLog(t, dir, "WoWCombatLog.txt", log)
+	dbPath := filepath.Join(dir, "companion.db")
+
+	if code := runOnce(t, logPath, dbPath, testLookup(nil)); code != exitOK {
+		t.Fatalf("exit code = %d, want %d", code, exitOK)
+	}
+
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	firstRunID, err := session.ClientRunID(session.RunIDParams{
+		ChallengeModeStartInstant: "2026-01-15T20:00:00.000000000Z",
+		ChallengeMapID:            501,
+		KeystoneLevel:             12,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := db.GetRunByClientRunID(ctx, firstRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == nil {
+		t.Fatalf("superseded run %q was not persisted", firstRunID)
+	}
+	if first.Status != storage.RunStatusAbandoned {
+		t.Fatalf("superseded run status = %q, want %q", first.Status, storage.RunStatusAbandoned)
+	}
+	if first.EndedAt == nil {
+		t.Fatal("superseded run must record ended_at")
+	}
+
+	active, err := db.GetActiveRun(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active == nil || active.ClientRunID == firstRunID {
+		t.Fatalf("active run = %+v, want the second run", active)
+	}
+}
+
 func readFixture(t *testing.T, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(path)

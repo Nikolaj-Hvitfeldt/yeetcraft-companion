@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -23,7 +24,7 @@ type DB struct {
 
 // Open opens or creates the database at path, applies migrations, and configures pragmas.
 func Open(path string) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite", path)
+	sqlDB, err := sql.Open("sqlite", pragmaDSN(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}
@@ -31,10 +32,6 @@ func Open(path string) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := configurePragmas(ctx, sqlDB); err != nil {
-		sqlDB.Close()
-		return nil, err
-	}
 	if err := migrate(ctx, sqlDB); err != nil {
 		sqlDB.Close()
 		return nil, err
@@ -56,18 +53,16 @@ func (db *DB) SQL() *sql.DB {
 	return db.sql
 }
 
-func configurePragmas(ctx context.Context, db *sql.DB) error {
+// pragmaDSN carries the connection pragmas in the DSN. foreign_keys and
+// busy_timeout are per-connection settings, so executing them once against the
+// pool would leave every later connection database/sql opens without them.
+func pragmaDSN(path string) string {
 	pragmas := []string{
-		"PRAGMA journal_mode=WAL",
-		"PRAGMA foreign_keys=ON",
-		fmt.Sprintf("PRAGMA busy_timeout=%d", defaultBusyTimeout),
+		"journal_mode(WAL)",
+		"foreign_keys(1)",
+		fmt.Sprintf("busy_timeout(%d)", defaultBusyTimeout),
 	}
-	for _, pragma := range pragmas {
-		if _, err := db.ExecContext(ctx, pragma); err != nil {
-			return fmt.Errorf("configure %s: %w", pragma, err)
-		}
-	}
-	return nil
+	return path + "?_pragma=" + strings.Join(pragmas, "&_pragma=")
 }
 
 // GetSetting returns a settings value or empty string when unset.

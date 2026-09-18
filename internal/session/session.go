@@ -40,6 +40,7 @@ type Manager struct {
 	inactivityTimeout time.Duration
 	now               func() time.Time
 	current           *RunSnapshot
+	superseded        []RunSnapshot
 }
 
 // NewManager returns a run state machine with the given inactivity timeout.
@@ -139,13 +140,15 @@ func (m *Manager) TakeCompleted() *RunSnapshot {
 	return &snapshot
 }
 
-// TakeAbandoned returns and clears a run that reached abandoned state.
+// TakeAbandoned returns the next run abandoned because a new run started before
+// it closed. Runs abandoned by Close or CheckInactivity are returned by those
+// methods instead. Call until it returns nil.
 func (m *Manager) TakeAbandoned() *RunSnapshot {
-	if m.current == nil || m.current.State != RunStateAbandoned {
+	if len(m.superseded) == 0 {
 		return nil
 	}
-	snapshot := *m.current
-	m.current = nil
+	snapshot := m.superseded[0]
+	m.superseded = m.superseded[1:]
 	return &snapshot
 }
 
@@ -167,7 +170,9 @@ func (m *Manager) observeStart(event parser.Event, loc *time.Location) {
 	now := m.now()
 
 	if m.current != nil && !isTerminal(m.current.State) {
-		m.closeAsAbandoned()
+		if superseded := m.closeAsAbandoned(); superseded != nil {
+			m.superseded = append(m.superseded, *superseded)
+		}
 	}
 
 	snapshot := &RunSnapshot{

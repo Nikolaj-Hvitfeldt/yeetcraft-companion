@@ -71,6 +71,34 @@ func (db *DB) UpdateRunStatus(ctx context.Context, clientRunID, status string, e
 	return nil
 }
 
+// CloseRun records a terminal status for a run, inserting it first when capture
+// never committed the run while it was active.
+func (db *DB) CloseRun(ctx context.Context, input RunInput, status string, endedAt time.Time) error {
+	tx, err := db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin close run transaction: %w", err)
+	}
+
+	input.Status = status
+	if _, err := upsertRunTx(ctx, tx, input); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE runs
+		SET status = ?, ended_at = ?
+		WHERE client_run_id = ?
+	`, status, endedAt.UTC().Format(time.RFC3339Nano), input.ClientRunID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("close run: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit close run: %w", err)
+	}
+	return nil
+}
+
 // GetRunByClientRunID returns a run by its deterministic client_run_id.
 func (db *DB) GetRunByClientRunID(ctx context.Context, clientRunID string) (*RunRecord, error) {
 	row := db.sql.QueryRowContext(ctx, `
