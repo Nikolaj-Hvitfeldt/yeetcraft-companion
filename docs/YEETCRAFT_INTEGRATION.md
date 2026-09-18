@@ -4,8 +4,8 @@ Integration architecture and ownership between the [Yeetcraft](https://github.co
 
 | | |
 | --- | --- |
-| **Status** | Planning — no companion upload client or ingest API implemented in either repository |
-| **Last updated** | 2026-07-30 |
+| **Status** | Phase 1 contract review — no companion upload client or ingest API implemented |
+| **Last updated** | 2026-09-18 |
 
 This document describes **how the two products relate**. It does not define an approved API contract, payload schema, or retry policy. For proposed designs, see [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md).
 
@@ -212,6 +212,12 @@ The recommended reconciliation approach (events + adjustment ledger, legacy base
 
 Implementing that migration is **Yeetcraft-side work** in a later phase. The companion must not assume aggregates are purely event-derived until the server enforces that model.
 
+The accepted MVP classification rule is event-based: a detected real death
+starts as `death`, and a user may reclassify it to `yeet`, back to `death`, or
+to `ignored`. A correction moves one aggregate count atomically and must never
+increase total mistakes. Future detector suggestions cannot overwrite a
+confirmed manual choice.
+
 ---
 
 ## Open questions
@@ -222,9 +228,10 @@ Unresolved until contract review and Phase 0 evidence:
 | ----- | -------- |
 | API contract format | JSON schema, OpenAPI, or hand-maintained examples in `contracts/companion/v1/`? |
 | Authentication mechanism | Dedicated companion key vs extended `API_KEY`; per-client credentials |
-| Player and character identity | GUID-first mapping from combat log to Yeetcraft `players`; character table introduction |
+| Player and character identity | Exact GUID-first contract outcome for mapped, unknown, ambiguous, and untracked characters |
 | Duplicate detection | Client event IDs, batch idempotency keys, server `ON CONFLICT` behavior |
 | Manual-data migration | Baseline `stat_adjustments` vs recomputation from events |
+| Classification corrections | Versioned/idempotent representation of `death ↔ yeet` and `ignored` transitions |
 | Retention | Local normalized events vs raw log retention; server evidence storage policy |
 | Aggregate recomputation | Transactional delta vs async recompute; interaction with manual PATCH |
 | API version compatibility | Supported `schemaVersion` range; client behavior on 400/422 |

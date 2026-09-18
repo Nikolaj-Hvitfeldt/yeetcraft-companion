@@ -98,13 +98,16 @@ docs/                      Plans and integration notes
 
 ## Phased work
 
-Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase
-0A.1, Phase 0B.1, limited Phase 0B.2, and the Phase 0 detection prototype are
-complete; Phase 0A.2 remains partially complete; Phase 0 is not complete.**
+Follow [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). **Phase 0
+was accepted for MVP progression on 2026-09-18. Phase 1 contract review is the
+current milestone; additional environmental and interruption evidence is
+non-blocking.**
 
-- Further Phase 0 parser or detection work is allowed only through an
-  explicitly approved phase task.
-- **SQLite**, **Wails**, uploads, death inference, and addon work remain deferred until their corresponding phase tasks approve them.
+- Additional parser/detection evidence work requires an explicitly approved
+  scoped task and must not displace the current phase.
+- Phase 1 defines and reviews contracts only. **SQLite**, migrations, API
+  implementation, uploads, **Wails**, and addon work remain deferred until
+  their corresponding phases approve them.
 
 ## Definition of done
 

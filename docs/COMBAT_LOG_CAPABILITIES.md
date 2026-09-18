@@ -4,8 +4,8 @@ Phase 0 capability matrix and evidence log for the Yeetcraft companion.
 
 |                  |                                                                                |
 | ---------------- | ------------------------------------------------------------------------------ |
-| **Phase**        | 0A.2 partially complete — detection prototype added                            |
-| **Last updated** | 2026-08-19                                                                     |
+| **Phase**        | Phase 0 accepted for MVP progression; residual evidence collection continues   |
+| **Last updated** | 2026-09-18                                                                     |
 | **Fixtures**     | Original synthetic corpus ([provenance](../testdata/logs/synthetic/README.md)) |
 
 Yeetcraft tracks **deaths** and **yeets** per player per dungeon per season. The companion must derive that information from local combat-log files written by the WoW client on **one** logging PC. This document records what the log can support — not what the product wishes were true.
@@ -24,7 +24,9 @@ These are **product goals**, not verified log capabilities:
 - Detect configured party members' deaths during Mythic+ runs.
 - Attribute each death to a dungeon run and (where possible) boss encounter vs trash.
 - Infer likely cause from recent combat-log context with stated confidence.
-- Distinguish ordinary deaths from yeet-like deaths only when evidence supports it; otherwise queue review.
+- Default detected deaths to ordinary deaths and allow explicit user
+  reclassification to `yeet` or `ignored`; automatic yeet logic may suggest
+  but does not decide.
 - Bound runs (start, completion, abandonment) without inventing boundaries.
 - Resume incremental reading across restarts, rotation, and truncation.
 
@@ -67,43 +69,43 @@ verified with a real log in this phase.
 
 | Capability               | Desired outcome                                      | Expected event / evidence source                           | Status             | Confidence | Known limitations                                                                                | Required fixture / scenario             | Fallback behavior                                           |
 | ------------------------ | ---------------------------------------------------- | ---------------------------------------------------------- | ------------------ | ---------- | ------------------------------------------------------------------------------------------------ | --------------------------------------- | ----------------------------------------------------------- |
-| Player identity          | Map a death to one of four configured tracked people | GUID + configured mapping; optional name/realm cross-check | Partially verified | high       | One tracked person used two character GUIDs; mappings must remain explicit                       | Two completed runs with roster changes  | `needs_review`; never guess from similar names              |
-| Character name and realm | Display and disambiguate who died                    | `UNIT_DIED`, `SPELL_*`, or aura lines with name–realm      | Partially verified | high       | Special characters, connected realms, rename                                                     | Two completed runs                      | Store log name; prompt review if unmapped                   |
-| Player GUID              | Stable key for idempotency and mapping               | `Player-XXXX-…` tokens in combat-log fields                | Partially verified | high       | More representative sessions are needed to establish visibility reliability                      | Two completed runs                      | Cannot auto-upload until GUID mapped                        |
+| Player identity          | Map a death to one of four configured tracked people | GUID + configured mapping; optional name/realm cross-check | Partially verified | high       | One tracked person used two character GUIDs; mappings must remain explicit                       | Five completed runs across two sessions | `needs_review`; never guess from similar names              |
+| Character name and realm | Display and disambiguate who died                    | `UNIT_DIED`, `SPELL_*`, or aura lines with name–realm      | Partially verified | high       | Special characters, connected realms, rename                                                     | Five completed runs across two sessions | Store log name; prompt review if unmapped                   |
+| Player GUID              | Stable key for idempotency and mapping               | `Player-XXXX-…` tokens in combat-log fields                | Partially verified | high       | Representative evidence is still limited to the fixed friend group                               | Five completed runs across two sessions | Cannot auto-upload until GUID mapped                        |
 | Class and specialization | Context for death review and future UI               | Class-specific `SPELL_CAST_SUCCESS` and aura lines         | Partially verified | medium     | Inferred from distinctive spells, not an authoritative roster field; not required for MVP counts | Two completed runs                      | Omit or show "unknown" in review                            |
 | Role                     | Tank/healer/DPS context for review                   | Same as class; may not appear explicitly in log            | Not investigated   | —          | Role is not in Yeetcraft DB today; log may omit                                                  | Any party death                         | Omit; use Yeetcraft frontend character data later if synced |
-| Group membership         | Know which units belong to the M+ group              | Configured GUIDs, unit flags, and repeated unit tokens     | Partially verified | medium     | No authoritative roster event was established; one untracked fifth player differed per run       | Two completed runs with a roster change | Restrict to configured GUID list; ignore outsiders          |
+| Group membership         | Know which units belong to the M+ group              | Configured GUIDs, unit flags, and repeated unit tokens     | Partially verified | high       | No authoritative roster event was established; explicit configured GUIDs remain the authority    | Five completed runs across two sessions | Restrict to configured GUID list; ignore outsiders          |
 
 ### Instance and run
 
 | Capability                   | Desired outcome                     | Expected event / evidence source                                  | Status             | Confidence | Known limitations                                                                          | Required fixture / scenario      | Fallback behavior                                             |
 | ---------------------------- | ----------------------------------- | ----------------------------------------------------------------- | ------------------ | ---------- | ------------------------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------- |
-| Dungeon or instance identity | Map run to Yeetcraft dungeon        | `ZONE_CHANGE`, `MAP_CHANGE`, `CHALLENGE_MODE_*`, instance name/ID | Partially verified | high       | Name vs Yeetcraft canonical list may differ                                                | Two completed M+ runs            | Manual dungeon selection in review; prefer game ID if present |
-| Dungeon difficulty           | Confirm Mythic+ vs other content    | Difficulty flags in encounter/challenge events                    | Partially verified | high       | Wrong difficulty → ignore run                                                              | Two completed M+ runs            | Exclude run from auto-upload                                  |
-| Keystone level               | Store key level on run              | `CHALLENGE_MODE_START`                                            | Partially verified | high       | May be missing outside M+                                                                  | Two completed M+ runs            | Optional field; manual entry in review                        |
-| Run start                    | Open a bounded run record           | `CHALLENGE_MODE_START`                                            | Partially verified | high       | Zeroed `CHALLENGE_MODE_END` records appeared immediately before starts and must be ignored | Two completed M+ runs            | Mark run `candidate` until confirmed                          |
-| Run completion               | Close run as successful             | `CHALLENGE_MODE_END`                                              | Partially verified | high       | Signal may arrive late or in next file                                                     | Two completed M+ runs            | Timeout-based `abandoned` if no completion                    |
+| Dungeon or instance identity | Map run to Yeetcraft dungeon        | `ZONE_CHANGE`, `MAP_CHANGE`, `CHALLENGE_MODE_*`, instance name/ID | Partially verified | high       | Name vs Yeetcraft canonical list may differ                                                      | Five completed M+ runs           | Manual dungeon selection in review; prefer game ID if present |
+| Dungeon difficulty           | Confirm Mythic+ vs other content    | Difficulty flags in encounter/challenge events                    | Partially verified | high       | Wrong difficulty → ignore run                                                                    | Five completed M+ runs           | Exclude run from auto-upload                                  |
+| Keystone level               | Store key level on run              | `CHALLENGE_MODE_START`                                            | Partially verified | high       | May be missing outside M+                                                                        | Five completed M+ runs           | Optional field; manual entry in review                        |
+| Run start                    | Open a bounded run record           | `CHALLENGE_MODE_START`                                            | Partially verified | high       | Zeroed `CHALLENGE_MODE_END` records appeared immediately before starts and must be ignored       | Five completed M+ runs           | Mark run `candidate` until confirmed                          |
+| Run completion               | Close run as completed              | `CHALLENGE_MODE_END`                                              | Partially verified | high       | `success=1` appeared on an overtime completion; treat as completion, not proof the key was timed | Five completed M+ runs           | Timeout-based `abandoned` if no completion                    |
 | Run abandonment              | Close run without inventing success | Timeout, zone leave, disconnect, or interrupted session           | Not investigated   | —          | Hard to distinguish pause vs quit                                                          | Abandoned M+; disconnect mid-run | Keep events; mark run `abandoned`; review before upload       |
 
 ### Encounters and combat context
 
 | Capability                | Desired outcome                          | Expected event / evidence source               | Status             | Confidence | Known limitations                                 | Required fixture / scenario        | Fallback behavior                                       |
 | ------------------------- | ---------------------------------------- | ---------------------------------------------- | ------------------ | ---------- | ------------------------------------------------- | ---------------------------------- | ------------------------------------------------------- |
-| Boss encounter start      | Set active boss for death attribution    | `ENCOUNTER_START`, journal encounter ID        | Partially verified | high       | More runs are needed for reliability              | Seven real boss encounters         | `encounter_id` null → dungeon-level only                |
-| Boss encounter completion | Clear active boss                        | `ENCOUNTER_END`                                | Partially verified | high       | Stale encounter state must be cleared immediately | Seven real boss encounters         | Clear active encounter; do not retain the previous boss |
-| Trash combat              | Attribute deaths outside boss encounters | Absence of an active encounter + combat events | Partially verified | high       | Multi-pack trash may blur                         | Eleven user-confirmed trash deaths | Classify as trash death with null encounter             |
+| Boss encounter start      | Set active boss for death attribution    | `ENCOUNTER_START`, journal encounter ID        | Partially verified | high       | Evidence includes completed and failed pulls, but only the fixed-group sessions | Nineteen real encounter windows | `encounter_id` null → dungeon-level only                |
+| Boss encounter completion | Clear active boss                        | `ENCOUNTER_END`                                | Partially verified | high       | Stale encounter state must be cleared immediately                              | Nineteen real encounter windows | Clear active encounter; do not retain the previous boss |
+| Trash combat              | Attribute deaths outside boss encounters | Absence of an active encounter + combat events | Partially verified | high       | Multi-pack trash may blur                                                     | Thirty-one reviewed trash deaths | Classify as trash death with null encounter             |
 
 ### Death and cause
 
 | Capability                     | Desired outcome                      | Expected event / evidence source                                                    | Status             | Confidence | Known limitations                                                                                    | Required fixture / scenario                                                     | Fallback behavior                                        |
 | ------------------------------ | ------------------------------------ | ----------------------------------------------------------------------------------- | ------------------ | ---------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Player death                   | Detect who died and when             | `UNIT_DIED` for configured GUIDs                                                    | Partially verified | high       | Twelve of twelve user-confirmed deaths were detected in one session; broader visibility remains open | Two completed runs                                                              | **Stop condition** if unreliable — see below             |
-| Final damage source            | Identify last relevant damage dealer | Recent `SPELL_DAMAGE` / `SPELL_PERIODIC_DAMAGE` / `SWING_DAMAGE` before `UNIT_DIED` | Partially verified | high       | Last hit is not always the full semantic cause; retain ranked alternatives                           | Twelve user-confirmed deaths                                                    | Rank causes; accept `unknown`                            |
-| Spell or ability causing death | Human-readable ability name and ID   | Spell fields on damage events                                                       | Partially verified | high       | Primary lethal abilities were user-confirmed as plausible, not independently replay-verified         | Twelve user-confirmed deaths                                                    | Store best rank; low confidence → review                 |
-| Boss attribution               | Link death to active boss encounter  | Active `ENCOUNTER_START` + death timestamp                                          | Partially verified | high       | Killing source may be an add; encounter and cause remain separate                                    | One boss death and eleven trash deaths                                          | Separate boss encounter from `death_causes` source       |
-| Environmental damage           | Detect environmental lethal damage   | `ENVIRONMENTAL_DAMAGE`, fall, drowning, etc.                                        | Documented         | none       | Exact event payload is documented; timestamp envelope and real semantics remain unresolved           | [`environmental-death.txt`](../testdata/logs/synthetic/environmental-death.txt) | Category `unknown` or `possible_yeet`; review            |
-| Knockback or displacement      | Evidence for yeet-like deaths        | Knockback auras, `SPELL_AURA_APPLIED`, position-less inference                      | Not investigated   | —          | Rarely explicit; high false-positive risk                                                            | Knockback followed by death                                                     | `possible_yeet` + review; never auto-yeet without policy |
-| Falling into the void          | Evidence for void/edge deaths        | Fall damage, environmental, no recent enemy hit                                     | Not investigated   | —          | Indistinguishable from some environmental deaths                                                     | Environmental or falling death                                                  | Conservative `death` or `possible_yeet`; review          |
+| Player death                   | Detect who died and when             | `UNIT_DIED` for configured GUIDs                                                    | Partially verified | high       | Forty-three reviewed deaths across five runs support the MVP; broader populations/builds remain open | Five completed runs across two sessions                                        | Pause upload if later evidence shows systematic misses   |
+| Final damage source            | Identify last relevant damage dealer | Recent `SPELL_DAMAGE` / `SPELL_PERIODIC_DAMAGE` / `SWING_DAMAGE` before `UNIT_DIED` | Partially verified | high       | A five-player wipe included three deaths without a lethal-overkill hit; retain medium-confidence alternatives | Forty-three reviewed deaths                                             | Rank causes; accept unknown cause without losing death   |
+| Spell or ability causing death | Human-readable ability name and ID   | Spell fields on damage events                                                       | Partially verified | high       | Second session produced 28 high-confidence and three medium-confidence primaries                     | Forty-three reviewed deaths                                                    | Store best rank; medium/low confidence remains reviewable |
+| Boss attribution               | Link death to active boss encounter  | Active `ENCOUNTER_START` + death timestamp                                          | Partially verified | high       | Killing source may be an add; encounter and cause remain separate                                    | Twelve boss-context and thirty-one trash deaths                                | Separate boss encounter from `death_causes` source       |
+| Environmental damage           | Detect environmental damage          | `ENVIRONMENTAL_DAMAGE`, fall, drowning, etc.                                        | Partially verified | medium     | Twelve real `Falling` events parsed, all nonlethal; lethal and void semantics remain unverified       | Twelve nonlethal falls; lethal scenario still open                             | Count a real death as `death`; user may reclassify       |
+| Knockback or displacement      | Suggest yeet-like review evidence    | Knockback auras, `SPELL_AURA_APPLIED`, position-less inference                      | Not investigated   | —          | Rarely explicit; high false-positive risk                                                            | Knockback followed by death                                                     | Never auto-classify; user may change `death` to `yeet`   |
+| Falling into the void          | Suggest void/edge review evidence    | Fall damage, environmental, no recent enemy hit                                     | Not investigated   | —          | Indistinguishable from some environmental deaths                                                     | Environmental or falling death                                                  | Default `death`; user may reclassify to `yeet`           |
 
 ### File mechanics
 
@@ -148,24 +150,29 @@ success test in Phase 0A.1.
 
 ---
 
-## Status summary (Phase 0 detection prototype)
+## Status summary (Phase 0 accepted)
 
 - Parser-foundation and selected typed-parsing technical capabilities remain
   **Synthetically tested**, with Phase 0A.2 retail adjustments for decimal
   damage-school tokens and float `CHALLENGE_MODE_END` timer fields.
 - **`internal/detection`** provides in-memory run/encounter context, recent
   incoming-damage buffers, ranked cause candidates, and death-candidate output.
-  Exercised synthetically and against a local retail log via `logprobe --deaths`.
+  Exercised synthetically and against two local retail logs via
+  `logprobe --deaths`.
 - Player death, boss encounter boundaries, run metadata, and ranked likely cause
-  are **Partially verified** on one retail 12.1.0 Mythic+ session (two timed
-  keys, seven boss encounters, twelve of twelve user-confirmed player deaths).
-- GUID filtering produced eight tracked deaths and excluded four deaths from
-  the two runs' untracked fifth players. Five tracked character GUIDs map to
-  four tracked people because one person used a different character per run.
-- Yeet classification, multi-log run continuity, and guaranteed visibility for
-  all four configured tracked characters across many runs remain **Not
-  investigated** or open.
-- Phase 0 is **not complete**.
+  are **Partially verified** across two retail 12.1.0 sessions: five completed
+  keys, nineteen encounter windows, and 43 reviewed player deaths.
+- GUID filtering retained 35 tracked deaths and excluded eight untracked
+  fifth-player deaths. Five tracked character GUIDs map to four tracked people
+  because one person used a different character between runs.
+- The second session added a failed boss pull, repeated death after
+  resurrection, a five-player trash wipe, an overtime completion, and twelve
+  real but nonlethal falling-damage events.
+- Manual review is the MVP classification authority: accepted deaths default to
+  `death` and may be changed by a user to `yeet` or `ignored`.
+- Phase 0 was **accepted for MVP progression on 2026-09-18**. Automatic yeet
+  suggestions, abandonment, reload/restart continuity, and file mechanics
+  remain explicit non-blocking evidence/Phase 2 work.
 
 ---
 
@@ -175,15 +182,15 @@ Each scenario must produce at least one anonymized fixture slice (or a documente
 
 | #   | Scenario                               | Primary capabilities exercised                     | Fixture name (planned)                                                                                                                                       | Status                      |
 | --- | -------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
-| 1   | Ordinary player death during trash     | Player death, trash combat, group membership, GUID | [`spell-damage-death.txt`](../testdata/logs/synthetic/spell-damage-death.txt), [`swing-damage-death.txt`](../testdata/logs/synthetic/swing-damage-death.txt) | Synthetic, shape-incomplete |
-| 2   | Player death during a boss encounter   | Boss start, boss attribution, player death         | [`boss-context-death.txt`](../testdata/logs/synthetic/boss-context-death.txt)                                                                                | Synthetic, shape-incomplete |
-| 3   | Death after several damage events      | Final damage source, spell/ability, confidence     | —                                                                                                                                                            | Not prepared                |
-| 4   | Environmental or falling death         | Environmental damage, falling/void, classification | [`environmental-death.txt`](../testdata/logs/synthetic/environmental-death.txt)                                                                              | Synthetic, shape-incomplete |
-| 5   | Knockback followed by death            | Knockback/displacement, possible yeet              | `knockback-death.txt`                                                                                                                                        | Not collected               |
-| 6   | Completed Mythic+ run                  | Run start/completion, dungeon ID, key level        | `mplus-complete.txt`                                                                                                                                         | Not collected               |
-| 7   | Abandoned Mythic+ run                  | Run abandonment, incomplete boundaries             | `mplus-abandoned.txt`                                                                                                                                        | Not collected               |
-| 8   | Disconnect or reload during a run      | Run abandonment, missed events, recovery           | `disconnect-mid-run.txt`                                                                                                                                     | Not collected               |
-| 9   | Combat-log file rotation or truncation | File rotation/truncation, incremental read         | `log-rotate.txt`                                                                                                                                             | Not collected               |
+| 1   | Ordinary player death during trash     | Player death, trash combat, group membership, GUID | Local gitignored sessions + [`spell-damage-death.txt`](../testdata/logs/synthetic/spell-damage-death.txt), [`swing-damage-death.txt`](../testdata/logs/synthetic/swing-damage-death.txt) | Partially verified with real logs |
+| 2   | Player death during a boss encounter   | Boss start, boss attribution, player death         | Local gitignored sessions + [`boss-context-death.txt`](../testdata/logs/synthetic/boss-context-death.txt) | Partially verified with real logs |
+| 3   | Death after several damage events      | Final damage source, spell/ability, confidence     | Local gitignored sessions                                                                                                                                    | Partially verified with real logs |
+| 4   | Environmental or falling death         | Environmental damage, falling/void, classification | Twelve real nonlethal falls + [`environmental-death.txt`](../testdata/logs/synthetic/environmental-death.txt)                                                | Damage verified; lethal case open |
+| 5   | Knockback followed by death            | Knockback/displacement, possible yeet              | `knockback-death.txt`                                                                                                                                        | Non-blocking; not collected |
+| 6   | Completed Mythic+ run                  | Run start/completion, dungeon ID, key level        | Five local gitignored runs                                                                                                                                   | Partially verified with real logs |
+| 7   | Abandoned Mythic+ run                  | Run abandonment, incomplete boundaries             | `mplus-abandoned.txt`                                                                                                                                        | Phase 2 evidence backlog |
+| 8   | Disconnect or reload during a run      | Run abandonment, missed events, recovery           | `disconnect-mid-run.txt`                                                                                                                                     | Phase 2 evidence backlog |
+| 9   | Combat-log file rotation or truncation | File rotation/truncation, incremental read         | `log-rotate.txt`                                                                                                                                             | Phase 2 evidence backlog |
 | 10  | Unknown or newly introduced event type | Parser resilience, unknown event handling          | [`unknown-event.txt`](../testdata/logs/synthetic/unknown-event.txt)                                                                                          | Synthetic fixture prepared  |
 
 ---
@@ -204,6 +211,7 @@ When recording observations (Phase 0 onward):
 
 | Date       | Build                                | ACL enabled                       | Scenario #                         | Fixture                                                                                                                                                                                                                                               | Observation summary                                                                                                                                                          | Matrix rows updated                                                       |
 | ---------- | ------------------------------------ | --------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 2026-08-26 | 12.1.0 retail                        | Header `1`                        | Local retail M+ session            | `local-data/raw-logs/` (not committed)                                                                                                                                                                                                                | User reviewed three completed runs and 31 deaths as correct: 27 tracked, four untracked, 11 boss-context, 20 trash, 28 high-confidence and three medium-confidence causes; also observed a failed boss pull, resurrection/redeath, full trash wipe, overtime completion, and twelve nonlethal falls | Run/encounter/death/cause rows expanded; environmental damage partially verified |
 | 2026-08-19 | 12.1.0 retail                        | Header `0`, advanced rows present | Local retail M+ session            | `local-data/raw-logs/` (not committed)                                                                                                                                                                                                                | User confirmed 12/12 deaths, both rosters, one boss death, and plausible primary causes; configured GUID filtering retained 8 tracked deaths and excluded 4 untracked deaths | Identity/roster, run, encounter, death, and cause rows partially verified |
 | 2026-07-30 | V22 docs target 12.0+                | Not applicable                    | Synthetic preparation              | [`synthetic/`](../testdata/logs/synthetic/README.md)                                                                                                                                                                                                  | Original fixtures prepared; timestamp envelope and `UNIT_DIED` suffix unresolved; no parser or real-log validation                                                           | Format-related rows only                                                  |
 | 2026-07-30 | V22 docs target 12.0+                | Not applicable                    | Phase 0B.1 technical tests         | [`synthetic/`](../testdata/logs/synthetic/README.md)                                                                                                                                                                                                  | Bounded streaming, CSV, common-header, unknown, malformed, partial-tail, and version-quarantine tests pass; no death inference                                               | File mechanics and parser foundation only                                 |
@@ -219,21 +227,24 @@ Phase 0B; it does not block all limited Phase 0B parser work.
 - [x] Verify that one logger sees all party deaths in the observed session.
 - [x] Verify filtering between configured tracked character GUIDs and each
       run's untracked fifth party member.
-- [x] Verify dungeon and run boundaries for two completed runs.
-- [x] Verify encounter boundaries for seven encounters.
-- [x] Verify ordering of recent damage before twelve deaths.
+- [x] Verify dungeon and run boundaries for five completed runs.
+- [x] Verify encounter boundaries for nineteen encounter windows, including a
+      failed pull followed by a successful pull.
+- [x] Verify ordering of recent damage before 43 reviewed deaths, including a
+      wipe and repeated death after resurrection.
 - [x] Compare final damage source with user-confirmed plausible causes.
-- [ ] Capture environmental and knockback/void deaths.
+- [x] Confirm real `Falling` damage visibility (twelve nonlethal events).
+- [ ] Capture lethal environmental and knockback/void deaths (non-blocking
+      future suggestion research).
 - [ ] Exercise file append, buffering, and truncation.
 - [ ] Compare real lines field-by-field with synthetic fixtures, including
       timestamp envelope, flags, advanced block, suffixes, and ordering.
 
 ---
 
-## Limited Phase 0B scope (may follow 0A.1)
+## Residual evidence backlog after Phase 0 acceptance
 
-Because a real Mythic+ log is not currently available, limited Phase 0B may
-implement and test only source-backed technical behavior:
+Source-backed Phase 0B parser behavior is implemented and tested for:
 
 - CSV-aware tokenization;
 - version-header CSV payload;
@@ -244,16 +255,13 @@ implement and test only source-backed technical behavior:
 - unknown and malformed input;
 - partial-line buffering.
 
-The following remain blocked pending Phase 0A.2:
+The following remain open but do not block Phase 1:
 
-- final raw timestamp-envelope compatibility;
-- exact V22 `UNIT_DIED` layout;
-- real party visibility;
-- real event ordering;
-- production-quality death detection;
-- run and encounter reliability;
-- death-cause accuracy;
-- yeet classification.
+- abandoned-run closure;
+- `/reload`, full restart, and multi-file run continuity;
+- live append, rotation, truncation, and persisted offsets;
+- lethal environmental and knockback/void evidence for automatic suggestions;
+- exact unresolved V22 suffix/unknown-field semantics.
 
 Shape-incomplete death scenarios must not be promoted to passing success
 fixtures.
@@ -262,22 +270,28 @@ fixtures.
 
 ## Phase 0 success criteria
 
-Phase 0 is complete only when **all** of the following are evidenced in this document and fixtures:
+Phase 0 was accepted for MVP progression after the following go/no-go criteria
+were evidenced or bounded with explicit fallback behavior:
 
-- [ ] Representative samples can be **read incrementally** (append/tail simulation documented).
-- [ ] Relevant event fields can be **parsed without crashing**; unknown events counted, not fatal.
-- [ ] **Player deaths** can be detected reliably enough for a go/no-go decision (configured party, representative runs).
-- [ ] **Dungeon, run, and encounter boundaries** can be assessed (even if some remain manual).
-- [ ] **Unsupported inferences** are listed explicitly with fallback behavior.
-- [ ] The project can make an **evidence-based go/no-go** decision documented in this file and the implementation plan.
+- [x] Representative samples can be read with the bounded streaming scanner;
+      live append/offset recovery is assigned to Phase 2.
+- [x] Relevant event fields parse without crashing; unknown events are counted,
+      not fatal.
+- [x] Player deaths are reliable enough for the fixed-group MVP go decision.
+- [x] Dungeon, completed-run, boss, and trash boundaries can be assessed.
+- [x] Unsupported inferences have explicit fallback/review behavior.
+- [x] The evidence-based **go** decision is recorded here and in the
+      implementation plan.
 
-**Phase 0 is not complete.**
+**Phase 0 accepted: 2026-09-18.** Evidence collection continues without
+blocking Phase 1.
 
 ---
 
 ## Stop conditions
 
-Pause companion implementation **before backend or upload work** if Phase 0 shows:
+Reopen the Phase 0 go decision and pause migrations/uploads if later evidence
+shows:
 
 | Condition                                   | Indicator                                                                 |
 | ------------------------------------------- | ------------------------------------------------------------------------- |
@@ -293,16 +307,17 @@ If stopped: document outcome here, update [IMPLEMENTATION_PLAN.md §8.2 stop con
 
 ## Unresolved questions
 
-Answer during Phase 0; do not treat as verified until evidenced.
+Track these after Phase 0; do not treat them as verified until evidenced or
+resolved during contract/session design.
 
 | #   | Question                                                                                                               | Blocks                         |
 | --- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| 1   | Operational **yeet** definition for Yeetcraft (game event vs heuristic)                                                | Classification automation      |
+| 1   | Which evidence is strong enough to suggest a possible yeet? Manual user classification remains authoritative.         | Future classification automation |
 | 2   | Can one M+ run span **multiple combat-log files**?                                                                     | Run ID recipe, offset strategy |
-| 3   | Is **key level** present in combat log for Midnight M+?                                                                | Run metadata                   |
-| 4   | Does one logger see **all four** party deaths consistently?                                                            | MVP single-PC assumption       |
-| 5   | Minimum event set for **run boundaries** on Midnight retail?                                                           | Session/detection design       |
-| 6   | Name/slug alignment with Yeetcraft `players` (see [YEETCRAFT_INTEGRATION.md](./YEETCRAFT_INTEGRATION.md)) vs log names | Identity mapping               |
+| 3   | Which signals distinguish an abandoned run from a paused or interrupted run?                                          | Phase 2 session state          |
+| 4   | Does one logger remain reliable across future builds and less representative group configurations?                     | Production monitoring          |
+| 5   | How should run identity continue across reload/restart/file rotation?                                                   | Phase 1 ID contract / Phase 2  |
+| 6   | How should GUID-first characters map to Yeetcraft players without exposing private identity data publicly?             | Phase 1 identity contract      |
 
 ---
 

@@ -2,11 +2,11 @@
 
 | Field | Value |
 | ----- | ----- |
-| **Status** | Planning |
-| **Current milestone** | Phase 0 in progress — detection prototype complete; Phase 0A.2 partial |
+| **Status** | Active |
+| **Current milestone** | Phase 1 — repository integration and canonical v1 contract review |
 | **Canonical repository** | [yeetcraft-companion](https://github.com/Nikolaj-Hvitfeldt/yeetcraft-companion) |
 | **Related repository** | [yeetcraft](https://github.com/Nikolaj-Hvitfeldt/Yeetcraft) (website, backend, PostgreSQL, API, canonical companion contract) |
-| **Last updated** | 2026-07-30 |
+| **Last updated** | 2026-09-18 |
 
 Automatic capture, local processing, and reliable upload of Mythic+ death events.
 
@@ -14,11 +14,15 @@ Automatic capture, local processing, and reliable upload of Mythic+ death events
 | ----- | ----- |
 | Primary focus | Windows companion application and Yeetcraft integration |
 | Existing system | React/Vite PWA, Go API, PostgreSQL/Supabase, Vercel + Render |
-| Initial users | Four configured tracked characters (fixed friend-group MVP) |
+| Initial users | Four tracked people with explicit character mappings (fixed friend-group MVP) |
 | Addon | Optional later extension; **not** a dependency for the companion MVP |
-| Document status | Implementation-ready plan; technical unknowns isolated in Phase 0 |
+| Document status | Phase 0 accepted; Phase 1 contract decisions are the next gate |
 
-**Recommended direction:** Build a headless Go proof of concept against real Midnight Mythic+ combat logs before changing the database or building a Wails UI. One player should be able to collect the party's visible deaths; all uploads must be idempotent and survive offline use and Render cold starts.
+**Current direction:** The headless Phase 0 proof of concept established a
+fixed-group MVP go decision. Complete the cross-repository Phase 1 contract
+review before changing either database or building upload/UI systems. One
+logger remains the MVP capture model; future uploads must be idempotent and
+survive offline use and Render cold starts.
 
 ---
 
@@ -29,6 +33,38 @@ The companion app becomes a local bridge between World of Warcraft and Yeetcraft
 The project should not begin with a polished desktop shell. Its primary uncertainty is **data quality**: which events are visible to one logging client, how reliably a Mythic+ run can be bounded, how a death cause can be inferred, and when a “yeet” can be distinguished from a normal death. **Phase 0** therefore produces evidence from real logs and a written capability matrix. Every later phase depends on that result.
 
 The safest migration is **additive**. Existing public GET routes, manual editing, token handling, offline frontend behavior, and player/dungeon statistics remain functional. A separate versioned ingest endpoint accepts immutable events. The server inserts them idempotently and updates the existing aggregate table within the same transaction. The companion and Yeetcraft remain **separate Git repositories** and communicate only through this versioned HTTP contract.
+
+---
+
+## Decision record
+
+### 2026-09-18 — Accept Phase 0 and begin Phase 1
+
+- Two reviewed retail sessions covering five completed Mythic+ runs produced 43
+  player death candidates. The detector retained 35 configured tracked deaths
+  and excluded eight untracked fifth-player deaths.
+- The evidence includes boss and trash deaths, a failed boss pull, a full-party
+  trash wipe, a repeated death after resurrection in one encounter, an overtime
+  completion, repeated version headers, and high/medium cause confidence.
+- No Phase 0 stop condition was triggered. One logging client provided useful
+  identity, run, encounter, death, and cause evidence for the fixed-group MVP.
+- Phase 0 is therefore **accepted for MVP progression**. This is a go decision,
+  not a claim that every combat-log behavior is verified.
+- Abandonment, reload/restart continuity, file rotation/truncation, lethal
+  environmental deaths, and knockback/void evidence remain an ongoing,
+  non-blocking research backlog. Reliability mechanics belong primarily to
+  Phase 2.
+
+### 2026-09-18 — Manual death/yeet classification is the MVP authority
+
+- Every accepted `UNIT_DIED` candidate starts as an ordinary `death`.
+- A user may reclassify it to `yeet`, return it to `death`, or mark it
+  `ignored`.
+- Exactly one accepted event contributes to exactly one aggregate category;
+  `death → yeet` moves one count atomically and never increases total mistakes.
+- Cause confidence and future automatic yeet logic may produce review
+  suggestions, but must not override a user's confirmed classification.
+- Perfect automatic yeet detection is not a Phase 0 or MVP gate.
 
 ---
 
@@ -52,7 +88,8 @@ The safest migration is **additive**. Existing public GET routes, manual editing
 - Detection of configured Yeetcraft players' `UNIT_DIED`-style events and a bounded recent-damage context.
 - Local SQLite event store and upload outbox.
 - Versioned batch ingest with stable IDs and server-side duplicate protection.
-- Normal deaths recorded automatically; uncertain classifications enter review.
+- Detected deaths default to ordinary deaths; users can reclassify them as
+  yeets or ignored during review.
 
 ### 1.3 Explicitly deferred
 
@@ -242,15 +279,19 @@ A player's “boss nemesis” is the boss encounter active when the player died.
 
 ### 4.4 Category and review model
 
-| Category | Meaning | Aggregate effect | Review |
-| -------- | ------- | ---------------- | ------ |
-| `death` | Confirmed ordinary death | +1 death | No, unless low confidence |
-| `possible_yeet` | Evidence suggests displacement/environment | Temporarily +1 death or excluded by policy | Yes |
-| `yeet` | Confirmed yeet | +1 yeet | No |
-| `unknown` | Death is real; cause/classification unresolved | +1 death by conservative policy | Yes |
-| `ignored` | Duplicate, non-party, or invalid event | None | Completed |
+| Classification | Meaning | Aggregate effect | Review |
+| -------------- | ------- | ---------------- | ------ |
+| `death` | Accepted ordinary death; default for a detected real death | +1 death | User may reclassify |
+| `yeet` | User-confirmed yeet | +1 yeet | Confirmed |
+| `ignored` | Duplicate, non-party, false positive, or intentionally excluded event | None | Confirmed |
 
-**Recommended accounting rule:** A real but uncertain death should count conservatively as a normal death until it is reclassified. Reclassification moves one count atomically from deaths to yeets; it must **never** increase total deaths.
+`possible_yeet` is a future detector **suggestion**, not an aggregate category.
+An unknown or ambiguous cause does not make the death disappear; it remains a
+normal death until a user changes its classification.
+
+**Accounting rule:** Reclassification moves one count atomically between
+deaths and yeets and must never increase total mistakes. A confirmed manual
+classification takes precedence over later detector reprocessing.
 
 ### 4.5 Stable IDs
 
@@ -266,7 +307,9 @@ client_event_id =
           normalized_event_type | sequence_disambiguator)
 ```
 
-The exact run recipe is **finalized after Phase 0** reveals available metadata. Persist generated IDs in SQLite immediately. The server's UNIQUE constraints are the final deduplication boundary.
+Phase 1 finalizes the exact run recipe from Phase 0's available metadata.
+Persist generated IDs in SQLite immediately once Phase 2 storage exists. The
+server's UNIQUE constraints are the final deduplication boundary.
 
 ---
 
@@ -469,7 +512,7 @@ For a four-person hobby project, a dedicated companion API key is sufficient ini
 | Phase | Purpose | Primary owner | Exit criterion |
 | ----- | ------- | ------------- | -------------- |
 | **Pre-Phase 0** — Repository bootstrap | Standalone repo and development boundaries | **Companion** | Companion repo starts/tests cleanly; Yeetcraft readable as sibling and unmodified |
-| **Phase 0** — Combat-log evidence spike | Prove visibility, parsing, death cause, and run signals | **Companion** | All four party deaths in test runs accounted for; uncertainties documented; **no server writes** |
+| **Phase 0** — Combat-log evidence spike | Prove visibility, parsing, death cause, and run signals | **Companion** | **Accepted 2026-09-18:** representative deaths accounted for; residual uncertainties documented; **no server writes** |
 | **Phase 1** — Repository integration and contracts | Validate code paths; define v1 contracts before migrations | **Both** (separate tasks) | Contract review completed; existing API and frontend constraints confirmed |
 | **Phase 2** — Headless companion foundation | Reliable tailing, offsets, parser, SQLite | **Companion** | Restart/truncation/rotation tests pass; events persist exactly once |
 | **Phase 3** — Backend event model and ingest | Additive schema and transactional idempotent ingest | **Yeetcraft** | Duplicate batches do not change totals; rollback preserves consistency |
@@ -499,7 +542,8 @@ Deliverables:
 
 ### 8.2 Phase 0 — Combat-log evidence spike (bounded PoC)
 
-**Status: Phase 0A.1, Phase 0B.1, limited Phase 0B.2, and Phase 0 detection prototype complete; Phase 0A.2 partially complete; Phase 0 is not complete**
+**Status: accepted for MVP progression on 2026-09-18. Real-log evidence
+collection continues as a non-blocking backlog.**
 
 | Sub-phase | Scope | Maximum evidence status |
 | --------- | ----- | ----------------------- |
@@ -513,10 +557,9 @@ Phase 0A.1 produces the
 [synthetic fixture corpus](../testdata/logs/synthetic/README.md). Synthetic
 fixtures establish test inputs, not real-world visibility or semantics.
 
-Phase 0B is splittable. Because a real Mythic+ log is not currently available,
-a **limited Phase 0B** may follow Phase 0A.1 without waiting for Phase 0A.2.
-Phase 0A.2 later validates and adjusts Phase 0B; it does not block all Phase 0B
-work.
+Phase 0B was intentionally split so source-backed parser work could begin
+before retail evidence was available. Phase 0A.2 subsequently validated and
+adjusted those assumptions against two local, gitignored retail sessions.
 
 **Phase 0B.1 (complete, 2026-07-30):** Implemented the bounded streaming
 line reader, provisional envelope separation, CSV-aware tokenization, V22
@@ -544,7 +587,15 @@ Mythic+ run context, boss encounter windows, recent incoming-damage buffers,
 ranked cause candidates, and player death candidates. Extended `cmd/logprobe`
 with privacy-safe `--deaths` and repeatable `--track-guid` filters.
 
-**Limited Phase 0B may implement and test:**
+**Phase 0 acceptance evidence (2026-09-18):** A second reviewed retail session
+added three completed runs and 31 deaths (27 tracked, four untracked), including
+11 boss-context deaths, a failed boss pull, a five-player trash wipe, repeated
+death after resurrection, and 28 high-confidence plus three medium-confidence
+primary causes. Twelve real `Falling` damage events parsed successfully but
+were nonlethal. Across both sessions, the accepted evidence covers five runs
+and 43 deaths (35 tracked, eight untracked).
+
+**Limited Phase 0B implemented and tested:**
 
 - CSV-aware tokenization;
 - version-header CSV payload parsing;
@@ -559,20 +610,18 @@ with privacy-safe `--deaths` and repeatable `--track-guid` filters.
 - unknown and malformed input handling;
 - partial-line buffering.
 
-A technical sub-capability may reach **Synthetically tested** in limited Phase
+A technical sub-capability reaches **Synthetically tested** in limited Phase
 0B only when an implementation passes an exact source-backed fixture. Shape-
 incomplete death scenarios must not be promoted to passing success fixtures.
 
-**Blocked until Phase 0A.2 provides a real log:**
+**Residual evidence backlog (non-blocking after Phase 0 acceptance):**
 
-- final raw timestamp-envelope compatibility;
-- exact V22 `UNIT_DIED` layout;
-- real party visibility;
-- real event ordering;
-- production-quality death detection;
-- run and encounter reliability;
-- death-cause accuracy;
-- yeet classification.
+- abandoned-run closure signals;
+- `/reload`, full-client restart, and multi-file run continuity;
+- file append, rotation, truncation, and resumable offset behavior;
+- lethal environmental and knockback/void deaths for future suggestions;
+- unresolved semantics of selected V22 unknown fields and the exact
+  `UNIT_DIED` suffix.
 
 Phase 0B design for advanced-block semantics remains open where the selected
 reference and observed V22 samples conflict. Do not infer suffix positions from
@@ -585,7 +634,8 @@ Deliverables:
 - [x] Recent-damage buffers and death candidate output in `internal/detection/`
 - [x] Anonymized fixture slices under [testdata/logs/](../testdata/logs/)
 - [x] Capability matrix in [docs/COMBAT_LOG_CAPABILITIES.md](./COMBAT_LOG_CAPABILITIES.md)
-- [ ] Test report: per-run expected vs detected deaths and likely-cause accuracy
+- [x] Privacy-safe per-run expected-vs-detected review recorded in the
+  capability matrix; raw logs remain local and gitignored
 
 Phase 0A.1 deliverables:
 
@@ -597,31 +647,58 @@ Phase 0A.1 deliverables:
 
 Tasks:
 
-- [ ] Enable advanced combat logging on one client and collect multiple representative Mythic+ runs (ordinary deaths, wipe, environmental death, fall/void-like death, interrupted run)
-- [ ] Verify whether the logger sees deaths and preceding damage for all four configured tracked characters when each is in range
-- [ ] Document available instance, difficulty, key-level, encounter, party, and completion markers
-- [ ] Measure ambiguity: missed deaths, wrong likely cause, duplicate candidates, uncertain run boundaries
-- [ ] Finalize capability matrix; decide which metadata is automatic, heuristic, or manual
+- [x] Collect multiple representative completed Mythic+ runs with advanced
+  combat logging, ordinary deaths, boss/trash deaths, and a wipe
+- [x] Verify observed deaths and preceding damage for all configured tracked
+  characters represented in the sessions
+- [x] Document available instance, difficulty, key-level, encounter, party, and
+  completion markers
+- [x] Measure observed ambiguity and retain medium-confidence causes for review
+- [x] Make the Phase 0 go/no-go decision and classify remaining scenarios as a
+  non-blocking Phase 2/evidence backlog
 
 **Acceptance criteria:**
 
-- All four party deaths in test runs are accounted for (or gaps are explicitly documented).
+- Representative tracked party deaths in reviewed runs are accounted for; the
+  fixed-group single-logger assumption is accepted for MVP progression.
 - Uncertainties recorded in `COMBAT_LOG_CAPABILITIES.md`; no verified capabilities claimed without fixtures.
 - **No server writes** and no Yeetcraft schema changes.
 
-**Stop condition:** If one logger cannot reliably observe the group's deaths, **pause before backend work**. Re-evaluate whether multiple companion clients, an addon-assisted model, or manual import is necessary.
+**Stop condition result:** Not triggered. If later evidence shows systematic
+missed tracked deaths or unsafe identity mapping, pause upload work and reopen
+the decision before production use.
 
 ### 8.3 Phase 1 — Repository integration and contracts
 
-**Owner: cross-repository task (separate commits per repo)**
+**Status: current milestone**
+
+**Owner: explicit cross-repository task with separate changes, validation, and
+commits per repository**
 
 Deliverables:
 
-- [ ] Architecture decision record
-- [ ] JSON examples/schema at `./yeetcraft/contracts/companion/v1/` (Yeetcraft)
-- [ ] Exact file change map for both repositories
+- [ ] Confirm the canonical contract format and create versioned examples/schema
+  at `contracts/companion/v1/` in Yeetcraft
+- [ ] Define GUID-first character resolution and explicit
+  tracked/untracked/unknown outcomes
+- [ ] Define run, encounter, death, ranked cause, and manual classification
+  payloads without uploading raw logs
+- [ ] Define deterministic run/event IDs, batch idempotency, retry-safe
+  acknowledgement, limits, and validation errors
+- [ ] Define `death ↔ yeet` and `ignored` correction transitions so total
+  mistakes remain invariant
+- [ ] Decide companion-specific authentication and credential boundaries
+- [ ] Define reconciliation with existing manual aggregate statistics
+- [ ] Record approved decisions in this plan or focused ADRs if the decision
+  history becomes too large
+- [ ] Produce an exact, repository-separated Phase 2/3 file change map
+- [ ] Review the contract against existing `PATCH /api/stats/batch`, auth,
+  offline frontend behavior, and guarded test-database requirements
 
-**Acceptance criteria:** Contract review completed; existing `PATCH /api/stats/batch` and frontend constraints confirmed.
+**Acceptance criteria:** The canonical v1 contract is reviewed and versioned in
+Yeetcraft; both repositories agree on identity, idempotency, classification,
+privacy, authentication, reconciliation, and error semantics; no migration or
+upload implementation is required to complete Phase 1.
 
 **Stop condition:** Do not begin Phase 3 migrations until contract is reviewed and versioned.
 
@@ -686,7 +763,7 @@ See phase table above. Each phase requires its deliverables complete and exit cr
 | ---- | ------ | ----------- | --------------- |
 | One logger cannot see every relevant combat event | Missing deaths/cause context | Medium until tested | Phase 0 visibility matrix; mark incomplete runs; addon or multi-client only if evidence requires it |
 | Run boundaries are ambiguous | Events assigned to wrong dungeon/run | Medium | State machine, persisted evidence, manual merge/review; prefer game IDs |
-| Yeets are not directly encoded | Wrong death/yeet split | High | `possible_yeet` + confidence + manual confirmation; conservative counting |
+| Yeets are not directly encoded | Wrong death/yeet split | High | Default to `death`; detector may suggest review, but explicit user reclassification is authoritative |
 | File rotation/truncation | Reprocessing or skipped lines | Medium | File generation identity, offsets, partial-line persistence, unique event IDs |
 | Render sleeps | Delayed upload | High | SQLite outbox, background retries, acknowledgement-based deletion |
 | Response lost after commit | Duplicate request | Medium | Server UNIQUE constraints and duplicate acknowledgement |
@@ -812,7 +889,10 @@ The addon is deliberately **not** a dependency for the companion MVP. Consider i
 
 ## 17. Recommended first work packages
 
-Complete repository bootstrap first, then create **only** the Phase 0 spike. Avoid database, API, and Wails changes until the capability matrix is complete.
+Repository bootstrap and the bounded Phase 0 spike are complete for MVP
+progression. The current work package is **Phase 1 contract review**. Avoid
+database migrations, API implementation, SQLite, uploads, and Wails until the
+canonical v1 contract is reviewed.
 
 ### 17.1 Bootstrap deliverables (complete)
 
@@ -826,16 +906,25 @@ Complete repository bootstrap first, then create **only** the Phase 0 spike. Avo
 | `.gitignore` | Combat logs, SQLite, secrets, binaries, Wails output, and diagnostics |
 | `go.mod` + skeleton | Minimal standalone Go module with no Yeetcraft code imports |
 
-### 17.2 Phase 0 deliverables (next)
+### 17.2 Phase 0 deliverables (accepted 2026-09-18)
 
 | Deliverable | Contents |
 | ----------- | -------- |
-| `cmd/logprobe` | CLI accepting a combat-log path and optional tracked names/GUIDs |
+| `cmd/logprobe` | CLI accepting a combat-log path and optional tracked GUIDs |
 | `internal/parser` | Streaming line parser with normalized events |
 | `internal/detection` | Recent-damage buffers and death candidate output |
 | `testdata/logs` | Small sanitized fixtures covering known cases |
 | `docs/COMBAT_LOG_CAPABILITIES.md` | Observed fields, visibility, accuracy, and unresolved gaps |
 | Test report | Per-run expected vs detected deaths and likely-cause accuracy |
+
+### 17.3 Phase 1 deliverables (next)
+
+| Deliverable | Contents |
+| ----------- | -------- |
+| Yeetcraft `contracts/companion/v1/` | Canonical versioned schemas/examples after review |
+| Decision record | Identity, idempotency, classification, auth, privacy, and reconciliation choices |
+| Repository file maps | Separate Phase 2 companion and Phase 3 Yeetcraft implementation scopes |
+| Contract review evidence | Compatibility review against current API, frontend writes, and test guards |
 
 ---
 
@@ -848,7 +937,7 @@ Complete repository bootstrap first, then create **only** the Phase 0 spike. Avo
 | Dungeon identity | Instance/run markers | To measure | Name/game-ID mapping |
 | Key level | Run metadata | To measure | Optional/manual |
 | Run start/end | Log marker/state machine | To measure | Inactivity/manual close |
-| Yeet classification | Knockback/environment heuristics | Expected low/medium | Manual confirmation |
+| Yeet classification | Explicit user review; future heuristics may suggest | Manual authority | Default `death`; reclassify to `yeet` or `ignored` |
 | Coordinates | Likely addon-only | Not MVP | Omit |
 
 *Fill reliability columns during Phase 0; do not pre-fill with assumed values.*

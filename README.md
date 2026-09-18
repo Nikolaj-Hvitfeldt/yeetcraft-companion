@@ -19,11 +19,19 @@ These are **separate products**:
 
 ## Current status
 
-**Phase 0 evidence work is in progress.** The repository contains a bounded
+**Phase 0 was accepted for MVP progression on 2026-09-18; Phase 1 contract
+review is current.** The repository contains a bounded
 streaming V22 parser, source-backed typed parsing for selected damage and
 metadata events, a Phase 0 **death-detection prototype** (`internal/detection`),
 fail-closed version/project quarantine, synthetic fixtures, and the privacy-safe
 `cmd/logprobe` diagnostic CLI (`--deaths` reports death candidates).
+
+Two reviewed local retail sessions cover five completed runs and 43 deaths
+(35 tracked, eight untracked), including boss/trash attribution, a failed pull,
+a full-party wipe, repeated death after resurrection, and high/medium cause
+confidence. Detected deaths default to ordinary deaths; the planned review flow
+lets users reclassify them as `yeet` or `ignored`. Automatic yeet detection is
+not an MVP gate.
 
 The following are **not** implemented yet:
 
@@ -33,8 +41,8 @@ The following are **not** implemented yet:
 - Review UI (including a future Wails-based desktop shell)
 - WoW addon integration (deferred)
 
-Typed parsing is synthetically tested and partially validated against a local
-retail 12.1.0 log kept under `local-data/` (gitignored). Use `logprobe --file
+Typed parsing is synthetically tested and partially validated against local
+retail 12.1.0 logs kept under `local-data/` (gitignored). Use `logprobe --file
 <path> --deaths [--track-guid <Player-GUID>]` to inspect death candidates
 without uploading raw logs.
 

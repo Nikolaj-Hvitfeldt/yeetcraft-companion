@@ -5,10 +5,10 @@ future **Nemesis Boss** support.
 
 | Field | Value |
 | --- | --- |
-| Status | Phase 0 evidence; no upload contract or server writes |
+| Status | Phase 0 accepted; Phase 1 contract review is current |
 | Owner of canonical character/encounter data | Yeetcraft repository |
 | Owner of log parsing and local inference | `yeetcraft-companion` |
-| Last updated | 2026-08-24 |
+| Last updated | 2026-09-18 |
 
 This document is not an API contract. The canonical companion contract remains
 planned for the Yeetcraft repository at `contracts/companion/v1/` and does not
@@ -19,7 +19,7 @@ exist yet.
 ## Why this document exists
 
 Yeetcraft is preparing to make WoW characters first-class server metadata while
-the companion continues collecting Phase 0 logs. A future event pipeline will
+the companion collects additional non-blocking log evidence. A future event pipeline will
 need to connect:
 
 ```text
@@ -44,25 +44,29 @@ versioned HTTP API.
 
 ---
 
-## Verified Phase 0 evidence
+## Phase 0 evidence accepted for MVP progression
 
-From one local retail 12.1.0 session:
+Across two reviewed local retail 12.1.0 sessions:
 
-- 403,044 complete log lines parsed;
-- two completed Mythic+ runs detected;
-- seven boss encounter windows detected;
-- twelve of twelve user-confirmed player deaths detected;
-- eight tracked deaths retained;
-- four untracked fifth-player deaths excluded;
+- 1,266,271 complete log lines parsed;
+- five completed Mythic+ runs detected;
+- nineteen boss encounter windows detected;
+- 43 player deaths reviewed as correct;
+- 35 tracked deaths retained;
+- eight untracked fifth-player deaths excluded;
 - five tracked character GUIDs mapped to four tracked people;
 - one tracked person used a Shadow Priest in one run and an Unholy Death Knight
   in another;
-- one boss-context death and eleven trash deaths were user-confirmed;
-- primary lethal causes were user-confirmed as plausible.
+- twelve boss-context deaths and 31 trash deaths;
+- a failed boss pull, full-party trash wipe, and repeated death after
+  resurrection were handled;
+- the second session produced 28 high-confidence and three medium-confidence
+  primary causes;
+- twelve real `Falling` events parsed successfully, all nonlethal.
 
-This is promising but remains **partially verified** because environmental,
-knockback/void, abandonment, reload/restart, and additional-run scenarios are
-still outstanding. See
+Phase 0 was accepted on 2026-09-18 because no stop condition was triggered for
+the fixed-group MVP. Environmental automation, abandonment, reload/restart, and
+file mechanics remain explicit non-blocking evidence or Phase 2 work. See
 [`COMBAT_LOG_CAPABILITIES.md`](./COMBAT_LOG_CAPABILITIES.md).
 
 ---
@@ -114,6 +118,23 @@ configuration and private server population remain separate later tasks.
 
 ---
 
+## Manual classification authority
+
+The MVP does not depend on automatic yeet inference:
+
+1. Every accepted detected death starts as `death`.
+2. A user may change it to `yeet`, return it to `death`, or mark it `ignored`.
+3. An accepted event contributes to exactly one aggregate category.
+4. Reclassification moves one count atomically and never increases total
+   mistakes.
+5. Cause confidence and future yeet heuristics may suggest review, but must not
+   overwrite a user's confirmed choice.
+
+Phase 1 must encode these transitions in the canonical contract and reconcile
+them with existing manual aggregate edits.
+
+---
+
 ## Fields the future contract will need
 
 The eventual canonical Yeetcraft-owned contract should resolve or represent:
@@ -156,7 +177,8 @@ The eventual canonical Yeetcraft-owned contract should resolve or represent:
 - amount/overkill where retained;
 - rank;
 - confidence;
-- review/classification status.
+- detector suggestion, if any;
+- user-confirmed classification and correction state.
 
 These are contract design inputs, not permission to implement uploads during
 Phase 0.
@@ -185,7 +207,7 @@ and tie rules.
 
 ---
 
-## Safe work while waiting for more logs
+## Safe work while collecting the residual evidence backlog
 
 Allowed companion-only tasks, when explicitly approved:
 
@@ -197,11 +219,10 @@ Allowed companion-only tasks, when explicitly approved:
 - non-canonical JSON examples clearly labeled as contract drafts;
 - Phase 0 expected-vs-detected test reports.
 
-Still blocked by real evidence:
+Non-blocking real-evidence gaps:
 
-- reliable environmental/knockback/void classification;
+- lethal environmental and knockback/void evidence for future suggestions;
 - exact abandonment/restart behavior;
-- production go/no-go across representative runs;
 - final `UNIT_DIED` suffix semantics.
 
 Still deferred by phase:
@@ -252,10 +273,10 @@ character metadata task unless the user explicitly adds companion scope.
 
 ---
 
-## Suggested prompt for a later cross-repository contract session
+## Suggested prompt for the current Phase 1 contract session
 
 ```text
-Plan only; do not implement migrations or uploads.
+Phase 0 is accepted. Plan only; do not implement migrations or uploads.
 
 Read Yeetcraft/docs/CHARACTERS_AND_BOSS_NEMESIS.md and
 yeetcraft-companion/docs/CHARACTER_AND_ENCOUNTER_HANDOFF.md, plus both
@@ -268,6 +289,7 @@ Draft the canonical companion v1 contract ownership and review plan for:
 - nullable encounter attribution;
 - ranked cause evidence;
 - idempotent batch/event IDs;
+- manual death/yeet/ignored classification and correction transitions;
 - manual aggregate reconciliation.
 
 Keep canonical contract files in Yeetcraft only. Do not commit real GUIDs,
