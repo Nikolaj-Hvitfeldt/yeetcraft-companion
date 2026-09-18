@@ -4,7 +4,7 @@
 | ----- | ----- |
 | Status | Phase 1 review notes — not a contract |
 | Canonical spec | `../yeetcraft/contracts/companion/v1/` (Yeetcraft-owned) |
-| Work package | WP1 + WP2 field mapping |
+| Work package | WP1 + WP2 field mapping + WP3 acknowledgement review |
 | Last updated | 2026-09-18 |
 
 This document maps **WP1 normative decisions** from the Yeetcraft canonical
@@ -15,7 +15,8 @@ truth.
 WP1 normative decisions are frozen. **WP2** field names below map to the canonical
 request schema at
 [`../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json`](../yeetcraft/contracts/companion/v1/schema/ingest-batch-request.schema.json).
-Acknowledgement codes remain **deferred to WP3**.
+WP3 acknowledgement semantics are frozen in canonical
+[`CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md#acknowledgement-semantics).
 
 ---
 
@@ -279,7 +280,36 @@ func (r *runTracker) observeStart(fields []string) {
 
 ---
 
+## WP3 — credential boundary and retry/acknowledgement gaps
+
+Canonical WP3 spec:
+[`../yeetcraft/contracts/companion/v1/CONTRACT.md`](../yeetcraft/contracts/companion/v1/CONTRACT.md)
+(acknowledgement, limits, auth, error taxonomy).
+
+| Contract requirement | Current companion state | Gap |
+| -------------------- | ----------------------- | --- |
+| `COMPANION_API_KEY` separate from browser `API_KEY` | No HTTP client | Phase 4 uploader |
+| Fail-closed **503** `companion_api_unconfigured` | No server probe | Phase 4 must surface operator-actionable message without logging credentials |
+| `X-API-Key` / `Authorization: Bearer` only | None | Phase 4 |
+| No `?token=` on API routes | N/A locally | Phase 4 must not add query-token auth |
+| Persist `batchId` + await HTTP **200** ordered results | No uploader or SQLite ack state | Phase 4 + Phase 2 storage |
+| Retry **5xx** / **429** with same `batchId` + body | No retry policy | Phase 4 |
+| Treat **409** `batch_conflict` / `event_id_conflict` as non-retryable | None | Phase 4 must halt and surface for review |
+| Treat **422** / **401** / **413** / **415** as non-retryable config/payload fixes | None | Phase 4 |
+| Map per-event `accepted` / `duplicate` / `needs_review` / `rejected` | None | Phase 4 parses [`ingest-batch-response.schema.json`](../yeetcraft/contracts/companion/v1/schema/ingest-batch-response.schema.json) |
+| `installationId` diagnostics only (not auth) | Not generated | Phase 2; must not be sent as a credential |
+| Route-level rate limit handling (**429**) | None | Phase 4 backoff |
+| Never log credentials or full payloads | `logprobe` prints cause GUIDs today | Phase 2 redaction + Phase 4 transport logging policy |
+
+### WP3 acceptance checklist
+
+- [x] WP3 auth credential boundary recorded (separate key; no `API_KEY` reuse)
+- [x] Retry vs non-retryable HTTP outcomes mapped to current gaps
+- [x] Batch idempotency replay behavior documented as Phase 4 responsibility
+- [x] Per-event outcome parsing deferred to Phase 4 (no companion schema copy)
+- [x] No contradiction with frozen WP1/WP2 ID or payload shapes
+
 ## Next step
 
-**WP3** — acknowledgement semantics, response/error schemas, limits, retry
-taxonomy, and HTTP status mapping for request-side semantic codes.
+**WP4** — Yeetcraft correction ADRs and revision-protected adjustment ledger
+(server context only; not companion wire schema).
