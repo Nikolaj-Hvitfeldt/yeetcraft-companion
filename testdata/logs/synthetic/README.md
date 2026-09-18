@@ -78,6 +78,9 @@ be uploaded.
 | `typed-damage-v22.txt` | Synthetically tested technical payloads | WowCoach selected canonical `spec.yaml`: exact advanced-enabled `SPELL_DAMAGE`, `RANGE_DAMAGE`, `SWING_DAMAGE`, and `ENVIRONMENTAL_DAMAGE` offsets | Typed payloads, advanced ownership placement, nullable booleans, and optional off-hand field |
 | `typed-metadata-v22.txt` | Synthetically tested technical payloads | WowCoach selected canonical `spec.yaml`: exact `ENCOUNTER_START`, `ENCOUNTER_END`, and `CHALLENGE_MODE_END` offsets | Neutral metadata parsing with documented trailing optional fields |
 | `typed-payload-invalid-v22.txt` | Synthetically tested invalid and diagnostic input | Exact selected-reference widths with synthetic primitive and source-expectation deviations | Separate typed parse errors from non-fatal diagnostics; verify privacy-safe counters |
+| `same-instant-deaths.txt` | Synthetically tested detection fixture | Timestamped `CHALLENGE_MODE_START`, `SPELL_DAMAGE`, and duplicate `UNIT_DIED` at one instant | Same-instant ordinal assignment during an active run; not real-log verification |
+| `death-outside-run.txt` | Synthetically tested detection fixture | Timestamped `CHALLENGE_MODE_START`/`CHALLENGE_MODE_END` with deaths before, during, and after run bounds | Run gating and `run_context_incomplete` holds; not real-log verification |
+| `player-source-cause.txt` | Synthetically tested detection fixture | Player-origin and creature-origin `SPELL_DAMAGE` before `UNIT_DIED` | Player-origin cause redaction and creature template ID extraction; not real-log verification |
 
 Primary source URLs:
 

@@ -15,6 +15,9 @@ func printDeathSummary(stdout io.Writer, deaths []detection.DeathCandidate) {
 			fmt.Fprintf(stdout, "death_%d_timestamp: %s\n", i+1, death.Timestamp)
 		}
 		fmt.Fprintf(stdout, "death_%d_victim_guid: %s\n", i+1, death.VictimGUID)
+		if death.HoldReason != "" {
+			fmt.Fprintf(stdout, "death_%d_hold_reason: %s\n", i+1, death.HoldReason)
+		}
 		if death.Run.Active {
 			fmt.Fprintf(stdout, "death_%d_run_map_id: %d\n", i+1, death.Run.MapID)
 			fmt.Fprintf(stdout, "death_%d_run_key_level: %d\n", i+1, death.Run.KeystoneLevel)
@@ -30,15 +33,21 @@ func printDeathSummary(stdout io.Writer, deaths []detection.DeathCandidate) {
 		for _, cause := range death.Causes {
 			prefix := fmt.Sprintf("death_%d_cause_%d", i+1, cause.Rank)
 			fmt.Fprintf(stdout, "%s_confidence: %s\n", prefix, cause.Confidence)
-			fmt.Fprintf(stdout, "%s_event_type: %s\n", prefix, cause.Hit.EventType)
-			if cause.Hit.SpellID != 0 {
-				fmt.Fprintf(stdout, "%s_spell_id: %d\n", prefix, cause.Hit.SpellID)
+			fmt.Fprintf(stdout, "%s_source_type: %s\n", prefix, cause.Cause.SourceType)
+			if cause.Cause.SpellID != 0 {
+				fmt.Fprintf(stdout, "%s_spell_id: %d\n", prefix, cause.Cause.SpellID)
 			}
-			if cause.Hit.EnvironmentalType != "" {
-				fmt.Fprintf(stdout, "%s_environmental_type: %s\n", prefix, cause.Hit.EnvironmentalType)
+			if cause.Cause.EnvironmentalType != "" {
+				fmt.Fprintf(stdout, "%s_environmental_type: %s\n", prefix, cause.Cause.EnvironmentalType)
 			}
-			fmt.Fprintf(stdout, "%s_amount: %d\n", prefix, cause.Hit.Amount)
-			fmt.Fprintf(stdout, "%s_overkill: %d\n", prefix, cause.Hit.Overkill)
+			if cause.Cause.PlayerOrigin {
+				fmt.Fprintf(stdout, "%s_player_origin: 1\n", prefix)
+			}
+			if cause.Cause.HasCreatureID {
+				fmt.Fprintf(stdout, "%s_creature_id: %d\n", prefix, cause.Cause.CreatureID)
+			}
+			fmt.Fprintf(stdout, "%s_amount: %d\n", prefix, cause.Cause.Amount)
+			fmt.Fprintf(stdout, "%s_overkill: %d\n", prefix, cause.Cause.Overkill)
 		}
 	}
 }

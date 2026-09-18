@@ -89,9 +89,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if *reportDeaths {
 		switch {
 		case *trackAllDiagnostic:
-			deathTracker = detection.NewDiagnosticTracker()
+			deathTracker = detection.NewDiagnosticTracker(nil)
 		case len(trackGUIDs) > 0:
-			deathTracker, err = detection.NewTracker(trackGUIDs)
+			deathTracker, err = detection.NewTracker(trackGUIDs, nil)
 			if err != nil {
 				fmt.Fprintln(stderr, "death tracking: invalid tracked guid configuration")
 				return exitFailure
