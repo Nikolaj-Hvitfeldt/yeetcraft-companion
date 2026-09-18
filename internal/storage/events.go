@@ -29,6 +29,7 @@ type CauseInput struct {
 // EventInput describes a death event to persist inside a commit transaction.
 type EventInput struct {
 	ClientEventID string
+	ClientRunID   string
 	CharacterGUID string
 	DeathInstant  string
 	Ordinal       int

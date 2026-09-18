@@ -17,9 +17,10 @@ type FileState struct {
 	ParserStateJSON string
 }
 
-// CommitInput atomically persists a run, events, causes, and the file offset derived from those bytes.
+// CommitInput atomically persists runs, events, causes, and the file offset derived from those bytes.
 type CommitInput struct {
 	Run    RunInput
+	Runs   []RunInput
 	Events []EventInput
 	File   FileState
 }
@@ -82,22 +83,41 @@ func (db *DB) GetFileState(ctx context.Context, path, fileIdentity string) (*Fil
 }
 
 func commitTx(ctx context.Context, tx *sql.Tx, input CommitInput) error {
-	if len(input.Events) > 0 && input.Run.ClientRunID == "" {
-		return fmt.Errorf("commit events: run client_run_id required")
-	}
+	runIDs := make(map[string]int64)
 
-	var runID int64
-	if input.Run.ClientRunID != "" {
-		var err error
-		runID, err = upsertRunTx(ctx, tx, input.Run)
+	upsert := func(run RunInput) error {
+		if run.ClientRunID == "" {
+			return nil
+		}
+		id, err := upsertRunTx(ctx, tx, run)
 		if err != nil {
+			return err
+		}
+		runIDs[run.ClientRunID] = id
+		return nil
+	}
+	if err := upsert(input.Run); err != nil {
+		return err
+	}
+	for _, run := range input.Runs {
+		if err := upsert(run); err != nil {
 			return err
 		}
 	}
 
 	for _, event := range input.Events {
-		_, _, err := insertEventTx(ctx, tx, runID, event)
-		if err != nil {
+		key := event.ClientRunID
+		if key == "" {
+			key = input.Run.ClientRunID
+		}
+		if key == "" {
+			return fmt.Errorf("commit events: run client_run_id required")
+		}
+		runID, ok := runIDs[key]
+		if !ok {
+			return fmt.Errorf("commit events: unknown run %q", key)
+		}
+		if _, _, err := insertEventTx(ctx, tx, runID, event); err != nil {
 			return err
 		}
 	}

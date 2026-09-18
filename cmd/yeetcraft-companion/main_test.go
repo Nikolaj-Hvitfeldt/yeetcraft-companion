@@ -333,6 +333,100 @@ func TestSupersededRunIsPersistedAsAbandoned(t *testing.T) {
 	}
 }
 
+func TestDeathThenSuccessfulEndPersistsUnderThatRun(t *testing.T) {
+	dir := t.TempDir()
+	log := strings.TrimRight(readFixture(t, "../../testdata/logs/synthetic/spell-damage-death.txt"), "\n") + "\n" +
+		`1/15/2026 20:30:00.0000 CHALLENGE_MODE_END,501,1,12,1800000,-12.5,1800.000000` + "\n"
+	logPath := writeTestLog(t, dir, "WoWCombatLog.txt", log)
+	dbPath := filepath.Join(dir, "companion.db")
+
+	if code := runOnce(t, logPath, dbPath, testLookup(nil)); code != exitOK {
+		t.Fatalf("exit code = %d, want %d", code, exitOK)
+	}
+
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	wantRunID, wantEventID := expectedSpellDamageIDs(t)
+	run, err := db.GetRunByClientRunID(ctx, wantRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run == nil {
+		t.Fatal("run not persisted")
+	}
+	if run.Status != storage.RunStatusCompleted {
+		t.Fatalf("run status = %q, want completed", run.Status)
+	}
+
+	event, err := db.GetEventByClientEventID(ctx, wantEventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event == nil || event.RunID != run.ID {
+		t.Fatalf("event = %+v, want run id %d", event, run.ID)
+	}
+}
+
+func TestDeathThenNewStartStaysOnFirstRun(t *testing.T) {
+	dir := t.TempDir()
+	log := strings.TrimRight(readFixture(t, "../../testdata/logs/synthetic/spell-damage-death.txt"), "\n") + "\n" +
+		`1/15/2026 21:00:00.0000 CHALLENGE_MODE_START,"Synthetic Dungeon",501,100,12,[1]` + "\n"
+	logPath := writeTestLog(t, dir, "WoWCombatLog.txt", log)
+	dbPath := filepath.Join(dir, "companion.db")
+
+	if code := runOnce(t, logPath, dbPath, testLookup(nil)); code != exitOK {
+		t.Fatalf("exit code = %d, want %d", code, exitOK)
+	}
+
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	firstRunID, wantEventID := expectedSpellDamageIDs(t)
+	first, err := db.GetRunByClientRunID(ctx, firstRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == nil {
+		t.Fatal("first run not persisted")
+	}
+	if first.Status != storage.RunStatusAbandoned {
+		t.Fatalf("first run status = %q, want abandoned", first.Status)
+	}
+
+	event, err := db.GetEventByClientEventID(ctx, wantEventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event == nil || event.RunID != first.ID {
+		t.Fatalf("death attached to run id %v, want first run %d", event, first.ID)
+	}
+
+	secondRunID, err := session.ClientRunID(session.RunIDParams{
+		ChallengeModeStartInstant: "2026-01-15T21:00:00.000000000Z",
+		ChallengeMapID:            501,
+		KeystoneLevel:             12,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.GetRunByClientRunID(ctx, secondRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second == nil || second.Status != storage.RunStatusActive {
+		t.Fatalf("second run = %+v, want active", second)
+	}
+}
+
 func readFixture(t *testing.T, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(path)

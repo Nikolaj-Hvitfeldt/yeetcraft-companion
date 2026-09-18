@@ -196,6 +196,58 @@ func TestCommitWritesRunEventsCausesAndOffsetTogether(t *testing.T) {
 	}
 }
 
+func TestCommitBindsEventsToListedRuns(t *testing.T) {
+	db := openTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	first := testRunInput()
+	secondStart := "2026-02-10T19:00:00.000000000Z"
+	secondRunID, err := session.ClientRunID(session.RunIDParams{
+		ChallengeModeStartInstant: secondStart,
+		ChallengeMapID:            375,
+		KeystoneLevel:             12,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := first
+	second.ClientRunID = secondRunID
+	second.ChallengeModeStartInstant = secondStart
+
+	eventID := mustClientEventID(t, "2026-02-10T18:45:12.123456789Z", 0)
+	event := testEventInput(eventID, "2026-02-10T18:45:12.123456789Z", 0)
+	event.ClientRunID = first.ClientRunID
+
+	if err := db.Commit(ctx, CommitInput{
+		Runs:   []RunInput{first, second},
+		Events: []EventInput{event},
+		File:   testFileState(256),
+	}); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+
+	firstRec, err := db.GetRunByClientRunID(ctx, first.ClientRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := db.GetEventByClientEventID(ctx, eventID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || firstRec == nil || got.RunID != firstRec.ID {
+		t.Fatalf("event run id = %+v, want first run %+v", got, firstRec)
+	}
+
+	secondRec, err := db.GetRunByClientRunID(ctx, secondRunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secondRec == nil {
+		t.Fatal("second run not persisted")
+	}
+}
+
 func TestCrashBeforeAckRollbackAndReplay(t *testing.T) {
 	db := openTestDB(t)
 	defer db.Close()

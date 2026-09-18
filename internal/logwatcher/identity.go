@@ -89,13 +89,18 @@ func isReplacement(committed Identity, current Identity, lastInfo, currentInfo o
 	if lastInfo != nil && currentInfo != nil && !os.SameFile(lastInfo, currentInfo) {
 		return true
 	}
-	// Head fingerprints are captured at generation start. Growing appends change
-	// the prefix and must not be treated as replacement once reading has begun.
-	if committedOffset > 0 {
-		return false
-	}
 	if committed.HeadFingerprint == "" || current.HeadFingerprint == "" {
 		return false
 	}
-	return committed.HeadFingerprint != current.HeadFingerprint
+	if committed.HeadFingerprint == current.HeadFingerprint {
+		return false
+	}
+	// Growing appends change the head of files smaller than the fingerprint
+	// window. Once we have consumed bytes, only treat a *shorter* file with a
+	// different head as replacement — Linux often reuses the inode after
+	// unlink+create, which otherwise looks like an in-place truncation.
+	if committedOffset > 0 {
+		return currentInfo != nil && currentInfo.Size() < committedOffset
+	}
+	return true
 }

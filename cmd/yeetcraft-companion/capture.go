@@ -163,7 +163,13 @@ func (s *captureService) pollOnce(ctx context.Context) error {
 		return err
 	}
 	s.watcher.AckCommitted(result.Committed)
-	return s.persistSupersededRuns(ctx)
+	if err := s.persistSupersededRuns(ctx); err != nil {
+		return err
+	}
+	if completed := s.session.TakeCompleted(); completed != nil {
+		return s.persistRunClosure(ctx, completed, storage.RunStatusCompleted)
+	}
+	return nil
 }
 
 // persistSupersededRuns closes runs that a later CHALLENGE_MODE_START replaced
@@ -181,10 +187,8 @@ func (s *captureService) persistSupersededRuns(ctx context.Context) error {
 }
 
 func (s *captureService) persistPoll(ctx context.Context, result logwatcher.PollResult) error {
-	current := s.session.Current()
 	deaths := s.tracker.Deaths()
 	newDeaths := deaths[s.persistedDeaths:]
-	s.persistedDeaths = len(deaths)
 
 	if result.Summary.BytesConsumed == 0 && result.Summary.LinesComplete == 0 && len(newDeaths) == 0 {
 		return nil
@@ -204,37 +208,72 @@ func (s *captureService) persistPoll(ctx context.Context, result logwatcher.Poll
 		ParserStateJSON: parserStateJSON,
 	}
 
+	runsByID := make(map[string]storage.RunInput)
+	var runs []storage.RunInput
+	addRun := func(run storage.RunInput) {
+		if run.ClientRunID == "" {
+			return
+		}
+		if _, exists := runsByID[run.ClientRunID]; exists {
+			return
+		}
+		runsByID[run.ClientRunID] = run
+		runs = append(runs, run)
+	}
+
 	events := make([]storage.EventInput, 0, len(newDeaths))
 	for _, death := range newDeaths {
+		runID, err := death.PersistClientRunID()
+		if err != nil {
+			return fmt.Errorf("persist death events without active run")
+		}
 		eventInput, err := deathToEventInput(death)
 		if err != nil {
 			return err
 		}
+		eventInput.ClientRunID = runID
+		addRun(runInputFromDeath(death, runID))
 		events = append(events, eventInput)
 	}
 
-	runInput := storage.RunInput{}
-	if current != nil && current.ClientRunID != "" {
-		runInput = storage.RunInput{
+	if current := s.session.Current(); current != nil && current.ClientRunID != "" {
+		addRun(storage.RunInput{
 			ClientRunID:               current.ClientRunID,
 			ChallengeModeStartInstant: current.ChallengeModeStartInstant,
 			ChallengeMapID:            current.ChallengeMapID,
 			KeystoneLevel:             current.KeystoneLevel,
 			Status:                    storage.RunStatusActive,
 			StartedAt:                 current.StartedAt,
-		}
-		if s.lastPersistedRun != current.ClientRunID {
-			s.lastPersistedRun = current.ClientRunID
-		}
-	} else if len(events) > 0 {
+		})
+		s.lastPersistedRun = current.ClientRunID
+	} else if len(events) > 0 && len(runs) == 0 {
 		return fmt.Errorf("persist death events without active run")
 	}
 
-	return s.db.Commit(ctx, storage.CommitInput{
-		Run:    runInput,
+	if err := s.db.Commit(ctx, storage.CommitInput{
+		Runs:   runs,
 		Events: events,
 		File:   fileState,
-	})
+	}); err != nil {
+		return err
+	}
+	s.persistedDeaths = len(deaths)
+	return nil
+}
+
+func runInputFromDeath(death detection.DeathCandidate, clientRunID string) storage.RunInput {
+	startedAt, err := time.Parse("2006-01-02T15:04:05.000000000Z", death.Run.StartInstant)
+	if err != nil {
+		startedAt = time.Now().UTC()
+	}
+	return storage.RunInput{
+		ClientRunID:               clientRunID,
+		ChallengeModeStartInstant: death.Run.StartInstant,
+		ChallengeMapID:            death.Run.MapID,
+		KeystoneLevel:             death.Run.KeystoneLevel,
+		Status:                    storage.RunStatusActive,
+		StartedAt:                 startedAt,
+	}
 }
 
 func (s *captureService) persistRunClosure(ctx context.Context, snapshot *session.RunSnapshot, status string) error {

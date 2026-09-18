@@ -252,6 +252,11 @@ func TestResolveCanonicalInstant(t *testing.T) {
 			wantCanon: "2026-01-15T18:00:01.123456789Z",
 		},
 		{
+			name:     "ten-digit fractional is invalid",
+			raw:      "1/15/2026 20:00:01.1234567899+02:00",
+			wantHold: InstantHoldInvalidInstant,
+		},
+		{
 			name:     "empty stamp",
 			raw:      "",
 			wantHold: InstantHoldInvalidInstant,

@@ -299,7 +299,7 @@ func fractionDigitsToNanoseconds(frac string) (int, bool) {
 		}
 	}
 	if len(frac) > 9 {
-		frac = frac[:9]
+		return 0, false
 	}
 	padded := frac + strings.Repeat("0", 9-len(frac))
 	nsec, err := strconv.Atoi(padded)

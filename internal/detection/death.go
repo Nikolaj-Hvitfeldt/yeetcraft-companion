@@ -121,6 +121,16 @@ func (d DeathCandidate) ClientRunID() (string, error) {
 	if !d.CanComputeIDs() {
 		return "", ErrIDsUnavailable
 	}
+	return d.PersistClientRunID()
+}
+
+// PersistClientRunID hashes the run that was active when the death was observed.
+// It does not require a hashable death instant, so a held death can still bind
+// to the correct run after the session has moved on.
+func (d DeathCandidate) PersistClientRunID() (string, error) {
+	if d.Run.StartInstant == "" || d.Run.StartInstantHold != "" {
+		return "", ErrIDsUnavailable
+	}
 	return session.ClientRunID(session.RunIDParams{
 		ChallengeModeStartInstant: d.Run.StartInstant,
 		ChallengeMapID:            int(d.Run.MapID),

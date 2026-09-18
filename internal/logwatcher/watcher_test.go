@@ -223,7 +223,7 @@ func TestWatcherReplaceSamePathStartsNewGeneration(t *testing.T) {
 
 	events, result := pollOnce(t, watcher, ctx)
 	if !result.Replaced {
-		t.Fatalf("expected replacement, result=%#v", result)
+		t.Fatalf("expected replacement (Linux may also report truncation after inode reuse), result=%#v", result)
 	}
 	if result.Committed.Generation != 1 || result.Committed.ByteOffset != 6 {
 		t.Fatalf("committed=%#v", result.Committed)
